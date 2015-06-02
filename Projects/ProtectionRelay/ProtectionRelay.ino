@@ -136,12 +136,9 @@ NIL_THREAD(Sensor, arg) {
   }
 }
 
-void setupMenu() {
+void drawSetupMenu() {
   int line;
   int col;
-  int flag=0;
-  
-  char r;
   
   line=3;
   col=20;
@@ -157,8 +154,10 @@ void setupMenu() {
   
   move(line++,col);
   setupSerial.print("1:    ModBus Settings");
+  
   move(line++,col);
   setupSerial.print("2:    Power Settings");
+  
   line++;
   move(line++,col);
   setupSerial.print("q:    Exit Settings");
@@ -166,9 +165,34 @@ void setupMenu() {
   
   move(20,20);
   setupSerial.print("Option> ");
+}
+
+void setupMenu() {
+  uint8_t flag=0;
+  uint8_t redraw=0;
+  
+  char r;
+  
+  drawSetupMenu();
   
   while ( 0 == flag ){
     r=setupSerial.read();
+    
+    switch(r) {
+      case '0':
+	setupSerial.print("Modbus");
+	delay(1000);
+	redraw = 1;
+	break;
+      case '1':
+	setupSerial.print("Power");
+	delay(1000);
+	redraw = 1;
+	break;
+      case 'q':
+	flag++;
+	break;
+    }
     
     if( 'q' == r) {
       flag++;
