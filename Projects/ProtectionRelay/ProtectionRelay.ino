@@ -169,22 +169,26 @@ void drawSetupMenu() {
 
 void setupMenu() {
   uint8_t flag=0;
-  uint8_t redraw=0;
+  uint8_t redraw=1;
   
   char r;
   
-  drawSetupMenu();
+  // drawSetupMenu();
   
   while ( 0 == flag ){
+    if(redraw) {
+      drawSetupMenu();
+      redraw=0;
+    }
     r=setupSerial.read();
     
     switch(r) {
-      case '0':
+      case '1':
 	setupSerial.print("Modbus");
 	delay(1000);
 	redraw = 1;
 	break;
-      case '1':
+      case '2':
 	setupSerial.print("Power");
 	delay(1000);
 	redraw = 1;
