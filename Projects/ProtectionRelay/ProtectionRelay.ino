@@ -56,8 +56,11 @@ void cls() {
 // y=column
 //
 void move(int x,int y) {
-    setupSerial.print("\033[%d;%dH");
-    setupSerial.print(x,y);
+    setupSerial.print("\033[");
+    setupSerial.print(x);
+    setupSerial.print(";");
+    setupSerial.print(y);
+    setupSerial.print("H");
 }
 
 
@@ -134,6 +137,28 @@ NIL_THREAD(Sensor, arg) {
 }
 
 void setupMenu() {
+  int line;
+  int col;
+  int flag=0;
+  
+  char r;
+  
+  line=3;
+  col=20;
+  
+  cls();
+  move(line++,col);
+  setupSerial.print("Setup Menu");
+  move(line++,col);
+  setupSerial.print("==========");
+  
+  while ( 0 == flag ){
+    r=setupSerial.read();
+    
+    if( 'q' == r) {
+      flag++;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
