@@ -105,6 +105,8 @@ NIL_THREAD(Sensor, arg) {
   }
 }
 
+SoftwareSerial setupSerial(10, 11); // RX, TX
+
 void setupMenu() {
 }
 
@@ -126,7 +128,6 @@ void setup() {
   pinMode(TRIP, INPUT_PULLUP); 
   pinMode(RESET, INPUT_PULLUP); 
   
-  SoftwareSerial setupSerial(10, 11); // RX, TX
   setupSerial.begin(9600);
   setupSerial.println("Setup port ready.");
 
