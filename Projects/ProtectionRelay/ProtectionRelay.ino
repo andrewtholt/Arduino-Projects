@@ -21,6 +21,9 @@ int sensorValue = 0;        // value read.
 NIL_WORKING_AREA(waThread1, 64);
 NIL_WORKING_AREA(waThread2, 64);
 
+/*
+ * Calculate RMS
+*/
 NIL_THREAD(Thread2, arg) {  
   int *p;
   int outputValue;
@@ -51,8 +54,10 @@ NIL_THREAD(Thread2, arg) {
     fifo.signalFree();    
   }
 }
-
-NIL_THREAD(Thread1, arg) {
+/*
+ * Collect data from current sensor.
+ */
+NIL_THREAD(Sensor, arg) {
   uint16_t n = 0;
   Serial.println("Start");
   nilTimer1Start(TIMER_DELAY);  
@@ -93,7 +98,7 @@ NIL_THREAD(Thread1, arg) {
  * null to save RAM since the name is currently not used.
  */
 NIL_THREADS_TABLE_BEGIN()
-NIL_THREADS_TABLE_ENTRY(NULL, Thread1, NULL, waThread1, sizeof(waThread1))
+NIL_THREADS_TABLE_ENTRY(NULL, Sensor, NULL, waThread1, sizeof(waThread1))
 NIL_THREADS_TABLE_ENTRY(NULL, Thread2, NULL, waThread2, sizeof(waThread2))
 NIL_THREADS_TABLE_END()
 //------------------------------------------------------------------------------
@@ -103,6 +108,15 @@ void setup() {
   Serial.begin(9600);
   // start kernel
   nilSysBegin();
+  /*
+   * Check if ModBus has been changed
+   * if not enter setup mode.
+   *
+   * Check if something connected to second serial port.
+   * if it is enter setup mode.
+   *
+   * Otherwise, we are done here.
+   */
 }
 
 void loop() {
