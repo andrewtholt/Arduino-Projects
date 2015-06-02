@@ -3,6 +3,9 @@
 // Use tiny unbuffered NilRTOS NilSerial library.
 #include <NilSerial.h>
 #include <NilFIFO.h>
+
+#include <SoftwareSerial.h>
+
 NilFIFO<int, 10> fifo;
 
 // Macro to redefine Serial as NilSerial to save RAM.
@@ -12,9 +15,18 @@ NilFIFO<int, 10> fifo;
 
 #include <NilTimer1.h>
 const int analogInPin = A0;  // Analog input pin that the sensor is attached to
+const int TRIP = 2;
+const int RESET = 3;
+
 int sensorValue = 0;        // value read.
 #define TIMER_DELAY 2500
 // #define TIMER_DELAY 400000
+
+// Global variables.  These will need a seamphore/mutex to serialise access.
+
+int V_RMS;
+int I_RMS;
+uint8_t RTU_ID;
 
 //------------------------------------------------------------------------------
 // Declare a stack with 64 bytes beyond context switch and interrupt needs.
@@ -92,6 +104,10 @@ NIL_THREAD(Sensor, arg) {
     }
   }
 }
+
+void setupMenu() {
+}
+
 //------------------------------------------------------------------------------
 /*
  * Threads static table, one entry per thread.  A thread's priority is
@@ -107,12 +123,29 @@ NIL_THREADS_TABLE_END()
 //------------------------------------------------------------------------------
 
 void setup() {
+  pinMode(TRIP, INPUT_PULLUP); 
+  pinMode(RESET, INPUT_PULLUP); 
+  
+  SoftwareSerial setupSerial(10, 11); // RX, TX
+  setupSerial.begin(9600);
+  setupSerial.println("Setup port ready.");
 
   Serial.begin(9600);
+  
   // start kernel
   nilSysBegin();
   /*
-   * Check if ModBus address has been changed
+   * Check if both TRIP and RESET buttons are pressed
+   * If they are enter setup mode.
+   * 
+   */
+  if( TRIP == LOW && RESET == LOW ) {
+    Serial.println("Entering setup menus on soft serial port.");
+    setupMenu();
+    Serial.println("Exiting setup menus.");
+  }
+    
+   /* Check if ModBus address has been changed
    * if not enter setup mode.
    *
    * Check if something connected to second serial port.
@@ -120,6 +153,7 @@ void setup() {
    *
    * Otherwise, we are done here.
    */
+  nilSysBegin();
 }
 
 void loop() {
