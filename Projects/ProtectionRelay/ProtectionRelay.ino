@@ -45,6 +45,9 @@ NIL_THREAD(Thread2, arg) {
     if (8 == count) {
       count=0;
       outputValue = sqrt(total/8);
+      /* 
+       * Save into a semaphore protected  global variable.
+      */
         
       Serial.print("\t output = ");
       Serial.print(outputValue);
