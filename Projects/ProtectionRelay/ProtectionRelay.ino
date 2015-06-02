@@ -33,6 +33,17 @@ uint8_t RTU_ID=0;
 NIL_WORKING_AREA(waThread1, 64);
 NIL_WORKING_AREA(waThread2, 64);
 
+SoftwareSerial setupSerial(10, 11); // RX, TX
+
+/*
+ * 
+ * Screen control sequences
+ */
+void home() {
+    setupSerial.print("\033[H");
+}
+
+
 /*
  * Calculate RMS
  */
@@ -104,8 +115,6 @@ NIL_THREAD(Sensor, arg) {
     }
   }
 }
-
-SoftwareSerial setupSerial(10, 11); // RX, TX
 
 void setupMenu() {
 }
