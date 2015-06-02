@@ -43,6 +43,23 @@ void home() {
     setupSerial.print("\033[H");
 }
 
+void ces() { // clear to end of screen
+    setupSerial.print("\033[J");
+}
+
+void cls() {
+    home();
+    ces();
+}
+
+// x=line
+// y=column
+//
+void move(int x,int y) {
+    setupSerial.print("\033[%d;%dH");
+    setupSerial.print(x,y);
+}
+
 
 /*
  * Calculate RMS
