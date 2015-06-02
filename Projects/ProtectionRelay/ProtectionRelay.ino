@@ -26,7 +26,7 @@ int sensorValue = 0;        // value read.
 
 int V_RMS;
 int I_RMS;
-uint8_t RTU_ID;
+uint8_t RTU_ID=0;
 
 //------------------------------------------------------------------------------
 // Declare a stack with 64 bytes beyond context switch and interrupt needs.
@@ -35,11 +35,11 @@ NIL_WORKING_AREA(waThread2, 64);
 
 /*
  * Calculate RMS
-*/
+ */
 NIL_THREAD(Thread2, arg) {  
   int *p;
   int outputValue;
-//  long value[8];
+  //  long value[8];
   int value;
   int total=0;
   int count=0;
@@ -48,19 +48,19 @@ NIL_THREAD(Thread2, arg) {
     p = fifo.waitData(TIME_INFINITE);
     count++;
     /*
-    Serial.print("sensor = " );
-    Serial.println(sensorValue);
-    */
+     *    Serial.print("sensor = " );
+     *    Serial.println(sensorValue);
+     */
     value = map(sensorValue, 0, 1023, -20000, 20000);
-
+    
     total +=sq(value);    
     if (8 == count) {
       count=0;
       outputValue = sqrt(total/8);
       /* 
        * Save into a semaphore protected  global variable.
-      */
-        
+       */
+      
       Serial.print("\t output = ");
       Serial.print(outputValue);
       Serial.println(" mA");
@@ -79,18 +79,18 @@ NIL_THREAD(Sensor, arg) {
   uint32_t last = micros();
   int missed=0;
   
-    // Execute while loop every 0.4 seconds.
+  // Execute while loop every 0.4 seconds.
   while (TRUE) {
     nilTimer1Wait();
     sensorValue = analogRead(analogInPin);
-
+    
     /*
-    uint32_t t = micros();
-    Serial.print(t - last);
-    Serial.print(' ');
-    Serial.println(n++);    
-    last = t;
-    */
+     *    uint32_t t = micros();
+     *    Serial.print(t - last);
+     *    Serial.print(' ');
+     *    Serial.println(n++);    
+     *    last = t;
+     */
     int* p = fifo.waitFree(TIME_IMMEDIATE);
     if (p == 0) {
       missed++;
@@ -130,7 +130,7 @@ void setup() {
   
   setupSerial.begin(9600);
   setupSerial.println("Setup port ready.");
-
+  
   Serial.begin(9600);
   
   // start kernel
@@ -141,16 +141,29 @@ void setup() {
    * 
    */
   if( TRIP == LOW && RESET == LOW ) {
+    Serial.println("Both buttons pressed.");
     Serial.println("Entering setup menus on soft serial port.");
     setupMenu();
     Serial.println("Exiting setup menus.");
   }
-    
-   /* Check if ModBus address has been changed
+  
+  /* Check if ModBus address has been changed
    * if not enter setup mode.
-   *
-   * Check if something connected to second serial port.
+   */
+  
+  // Read RTU_ID from EEPROM
+  //
+  if (0 == RTU_ID ) {
+    Serial.println("RTU ID Still set to default.");
+    Serial.println("Entering setup menus on soft serial port.");
+    setupMenu();
+    Serial.println("Exiting setup menus.");
+  }
+  
+  /* Check if something connected to second serial port.
    * if it is enter setup mode.
+   * This assumes an FTDI module or similar that can generate a signal
+   * Indicating connection.
    *
    * Otherwise, we are done here.
    */
@@ -159,5 +172,5 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-
+  
 }
