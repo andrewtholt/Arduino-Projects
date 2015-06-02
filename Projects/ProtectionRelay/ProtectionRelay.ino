@@ -40,27 +40,27 @@ SoftwareSerial setupSerial(10, 11); // RX, TX
  * Screen control sequences
  */
 void home() {
-    setupSerial.print("\033[H");
+  setupSerial.print("\033[H");
 }
 
 void ces() { // clear to end of screen
-    setupSerial.print("\033[J");
+  setupSerial.print("\033[J");
 }
 
 void cls() {
-    home();
-    ces();
+  home();
+  ces();
 }
 
 // x=line
 // y=column
 //
 void move(int x,int y) {
-    setupSerial.print("\033[");
-    setupSerial.print(x);
-    setupSerial.print(";");
-    setupSerial.print(y);
-    setupSerial.print("H");
+  setupSerial.print("\033[");
+  setupSerial.print(x);
+  setupSerial.print(";");
+  setupSerial.print(y);
+  setupSerial.print("H");
 }
 
 
@@ -152,6 +152,19 @@ void setupMenu() {
   move(line++,col);
   setupSerial.print("==========");
   
+  line = 5;
+  move(line++,col);
+  setupSerial.print("1:    ModBus Settings");
+  move(line++,col);
+  setupSerial.print("2:    Power Settings");
+  line++;
+  move(line++,col);
+  setupSerial.print("q:    Exit Settings");
+  
+  
+  move(23,20);
+  printf("Option> ");
+  
   while ( 0 == flag ){
     r=setupSerial.read();
     
@@ -217,7 +230,7 @@ void setup() {
    *
    * Otherwise, we are done here.
    */
-   
+  
   // start kernel   
   nilSysBegin();
 }
