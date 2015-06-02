@@ -109,7 +109,7 @@ void setup() {
   // start kernel
   nilSysBegin();
   /*
-   * Check if ModBus has been changed
+   * Check if ModBus address has been changed
    * if not enter setup mode.
    *
    * Check if something connected to second serial port.
