@@ -152,7 +152,9 @@ void setupMenu() {
   move(line++,col);
   setupSerial.print("==========");
   
-  line = 5;
+  line = 6;
+  col=10;
+  
   move(line++,col);
   setupSerial.print("1:    ModBus Settings");
   move(line++,col);
@@ -162,8 +164,8 @@ void setupMenu() {
   setupSerial.print("q:    Exit Settings");
   
   
-  move(23,20);
-  printf("Option> ");
+  move(20,20);
+  setupSerial.print("Option> ");
   
   while ( 0 == flag ){
     r=setupSerial.read();
@@ -172,6 +174,7 @@ void setupMenu() {
       flag++;
     }
   }
+  setupSerial.println();
 }
 
 //------------------------------------------------------------------------------
