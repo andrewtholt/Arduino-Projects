@@ -141,10 +141,10 @@ void setup() {
    * 
    */
   if( TRIP == LOW && RESET == LOW ) {
-    Serial.println("Both buttons pressed.");
-    Serial.println("Entering setup menus on soft serial port.");
+    setupSerial.println("Both buttons pressed.");
+    setupSerial.println("Entering setup menus on soft serial port.");
     setupMenu();
-    Serial.println("Exiting setup menus.");
+    setupSerial.println("Exiting setup menus.");
   }
   
   /* Check if ModBus address has been changed
@@ -154,10 +154,10 @@ void setup() {
   // Read RTU_ID from EEPROM
   //
   if (0 == RTU_ID ) {
-    Serial.println("RTU ID Still set to default.");
-    Serial.println("Entering setup menus on soft serial port.");
+    setupSerial.println("RTU ID Still set to default.");
+    setupSerial.println("Entering setup menus on soft serial port.");
     setupMenu();
-    Serial.println("Exiting setup menus.");
+    setupSerial.println("Exiting setup menus.");
   }
   
   /* Check if something connected to second serial port.
