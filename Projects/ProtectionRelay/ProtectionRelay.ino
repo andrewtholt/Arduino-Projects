@@ -133,8 +133,7 @@ void setup() {
   
   Serial.begin(9600);
   
-  // start kernel
-  nilSysBegin();
+  // nilSysBegin();
   /*
    * Check if both TRIP and RESET buttons are pressed
    * If they are enter setup mode.
@@ -167,6 +166,8 @@ void setup() {
    *
    * Otherwise, we are done here.
    */
+   
+  // start kernel   
   nilSysBegin();
 }
 
