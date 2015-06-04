@@ -228,6 +228,36 @@ NIL_THREAD(Sensor, arg) {
     }
 }
 
+void drawModBusMenu() {
+    int line;
+    int col;
+
+    line = 3;
+    col = 20;
+
+    cls();
+    move(line++, col);
+    setupSerial.print("Modbus Menu");
+    move(line++, col);
+    setupSerial.print("===========");
+
+    line = 6;
+    col = 10;
+
+    move(line++, col);
+    setupSerial.print("1:    RTU Address");
+
+    move(line++, col);
+    setupSerial.print("2:    Baud Rate");
+
+    line++;
+    move(line++, col);
+    setupSerial.print("q:    Exit Settings");
+
+    move(20, 20);
+    setupSerial.print("Option> ");
+}
+
 void drawSetupMenu() {
     int line;
     int col;
@@ -254,7 +284,6 @@ void drawSetupMenu() {
     move(line++, col);
     setupSerial.print("q:    Exit Settings");
 
-
     move(20, 20);
     setupSerial.print("Option> ");
 }
@@ -264,8 +293,6 @@ void setupMenu() {
     uint8_t redraw = 1;
 
     char r;
-
-    // drawSetupMenu();
 
     while ( 0 == flag ) {
         if (redraw) {
