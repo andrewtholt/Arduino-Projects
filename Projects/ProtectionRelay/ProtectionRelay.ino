@@ -227,6 +227,7 @@ NIL_THREAD(Sensor, arg) {
         }
     }
 }
+uint8_t rtu;
 
 void drawModbusMenu() {
     int line;
@@ -246,6 +247,9 @@ void drawModbusMenu() {
 
     move(line++, col);
     setupSerial.print("1:    RTU Address");
+    setupSerial.print(" (");
+    setupSerial.print(rtu);
+    setupSerial.print(")");
 
     move(line++, col);
     setupSerial.print("2:    Baud Rate");
@@ -274,7 +278,9 @@ void modbusMenu() {
         if (r > 0) {
             switch (r) {
                 case '1':
-                    setupSerial.print("RTU Address");
+                    move(6,30);
+                    setupSerial.setTimeout(1000);
+                    rtu=setupSerial.parseInt();
                     delay(1000);
                     redraw = 1;
                     break;
@@ -389,6 +395,8 @@ NIL_THREADS_TABLE_END()
     //------------------------------------------------------------------------------
 
     void setup() {
+        rtu=0;
+
         pinMode(TRIP, INPUT_PULLUP);
         pinMode(RESET, INPUT_PULLUP);
 
