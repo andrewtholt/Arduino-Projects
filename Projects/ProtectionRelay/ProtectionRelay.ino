@@ -82,6 +82,7 @@ uint8_t RTU_ID=0;
 // Declare a stack with 64 bytes beyond context switch and interrupt needs.
 NIL_WORKING_AREA(waThread1, 64);
 NIL_WORKING_AREA(waThread2, 64);
+NIL_WORKING_AREA(waModBus, 64);
 
 SoftwareSerial setupSerial(10, 11); // RX, TX
 
@@ -113,6 +114,11 @@ void move(int x,int y) {
     setupSerial.print("H");
 }
 
+/*
+ * ModBus task.
+ */
+NIL_THREAD(ModBus, arg) {  
+}
 
 /*
  * Calculate RMS
@@ -264,57 +270,58 @@ void setupMenu() {
  * These threads start with a null argument.  A thread's name is also
  * null to save RAM since the name is currently not used.
  */
-    NIL_THREADS_TABLE_BEGIN()
+NIL_THREADS_TABLE_BEGIN()
     NIL_THREADS_TABLE_ENTRY(NULL, Sensor, NULL, waThread1, sizeof(waThread1))
     NIL_THREADS_TABLE_ENTRY(NULL, Thread2, NULL, waThread2, sizeof(waThread2))
+    NIL_THREADS_TABLE_ENTRY(NULL, ModBus, NULL, waModBus, sizeof(waModBus))
 NIL_THREADS_TABLE_END()
     //------------------------------------------------------------------------------
 
-    void setup() {
-        pinMode(TRIP, INPUT_PULLUP); 
-        pinMode(RESET, INPUT_PULLUP); 
+void setup() {
+    pinMode(TRIP, INPUT_PULLUP); 
+    pinMode(RESET, INPUT_PULLUP); 
 
-        setupSerial.begin(9600); // Second, soft serial port
-        setupSerial.println("Setup port ready.");
+    setupSerial.begin(9600); // Second, soft serial port
+    setupSerial.println("Setup port ready.");
 
-        Serial.begin(9600); // H/w port, for ModBus
+    Serial.begin(9600); // H/w port, for ModBus
 
-        // nilSysBegin();
-        /*
-         * Check if both TRIP and RESET buttons are pressed
-         * If they are enter setup mode.
-         * 
-         */
-        if( TRIP == LOW && RESET == LOW ) {
-            setupSerial.println("Both buttons pressed.");
-            setupSerial.println("Entering setup menus on soft serial port.");
-            setupMenu();
-            setupSerial.println("Exiting setup menus.");
-        }
-
-        /* Check if ModBus address has been changed
-         * if not enter setup mode.
-         */
-
-        // Read RTU_ID from EEPROM
-        //
-        if (0 == RTU_ID ) {
-            setupSerial.println("RTU ID Still set to default.");
-            setupSerial.println("Entering setup menus on soft serial port.");
-            setupMenu();
-        }
-
-        /* Check if something connected to second serial port.
-         * if it is enter setup mode.
-         * This assumes an FTDI module or similar that can generate a signal
-         * Indicating connection.
-         *
-         * Otherwise, we are done here.
-         */
-
-        // start kernel   
-        nilSysBegin();
+    // nilSysBegin();
+    /*
+     * Check if both TRIP and RESET buttons are pressed
+     * If they are enter setup mode.
+     * 
+     */
+    if( TRIP == LOW && RESET == LOW ) {
+        setupSerial.println("Both buttons pressed.");
+        setupSerial.println("Entering setup menus on soft serial port.");
+        setupMenu();
+        setupSerial.println("Exiting setup menus.");
     }
+
+    /* Check if ModBus address has been changed
+     * if not enter setup mode.
+     */
+
+    // Read RTU_ID from EEPROM
+    //
+    if (0 == RTU_ID ) {
+        setupSerial.println("RTU ID Still set to default.");
+        setupSerial.println("Entering setup menus on soft serial port.");
+        setupMenu();
+    }
+
+    /* Check if something connected to second serial port.
+     * if it is enter setup mode.
+     * This assumes an FTDI module or similar that can generate a signal
+     * Indicating connection.
+     *
+     * Otherwise, we are done here.
+     */
+
+    // start kernel   
+    nilSysBegin();
+}
 
 void loop() {
     // put your main code here, to run repeatedly:
