@@ -228,7 +228,7 @@ NIL_THREAD(Sensor, arg) {
     }
 }
 
-void drawModBusMenu() {
+void drawModbusMenu() {
     int line;
     int col;
 
@@ -252,12 +252,53 @@ void drawModBusMenu() {
 
     line++;
     move(line++, col);
-    setupSerial.print("q:    Exit Settings");
+    setupSerial.print("x:    Exit menu");
 
     move(20, 20);
     setupSerial.print("Option> ");
 }
 
+void modbusMenu() {
+    uint8_t flag = 0;
+    uint8_t redraw = 1;
+
+    char r;
+
+    while ( 0 == flag ) {
+        if (redraw) {
+            drawModbusMenu();
+            redraw = 0;
+        }
+        r = setupSerial.read();
+
+        if (r > 0) {
+            switch (r) {
+                case '1':
+                    setupSerial.print("RTU Address");
+                    delay(1000);
+                    redraw = 1;
+                    break;
+                case '2':
+                    setupSerial.print("Baud Rate");
+                    delay(1000);
+                    redraw = 1;
+                    break;
+                case 'x':
+                    flag++;
+                    break;
+                default:
+                    redraw = 1;
+                    break;
+            }
+
+            if ( 'x' == r) {
+                flag++;
+            }
+        }
+    }
+    cls();
+    setupSerial.println("Setup exited.");
+}
 void drawSetupMenu() {
     int line;
     int col;
@@ -288,6 +329,7 @@ void drawSetupMenu() {
     setupSerial.print("Option> ");
 }
 
+
 void setupMenu() {
     uint8_t flag = 0;
     uint8_t redraw = 1;
@@ -305,7 +347,8 @@ void setupMenu() {
             switch (r) {
                 case '1':
                     setupSerial.print("Modbus");
-                    delay(1000);
+                    modbusMenu();
+//                    delay(1000);
                     redraw = 1;
                     break;
                 case '2':
