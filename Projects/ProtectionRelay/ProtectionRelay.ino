@@ -182,10 +182,10 @@ NIL_THREAD(Thread2, arg) {
              */
 
             /*
-            setupSerial.print("\t output = ");
-            setupSerial.print(outputValue);
-            setupSerial.println(" mA");
-            */
+               setupSerial.print("\t output = ");
+               setupSerial.print(outputValue);
+               setupSerial.println(" mA");
+               */
         }
 
         fifo.signalFree();
@@ -228,6 +228,39 @@ NIL_THREAD(Sensor, arg) {
     }
 }
 uint8_t rtu;
+// 
+// Send ascii chars down the serial port, up to 'digits' and
+// return the result as an integer.  Ignore none numeric, except enter.
+// allow backspace.
+//
+int getNumber(int digits) {
+    uint8_t idx=0;
+
+    char buffer[digits+1];
+    char n;
+    uint8_t runFlag=TRUE;
+
+    while(runFlag == TRUE ) {
+        while (setupSerial.available() > 0) {
+            n = setupSerial.read();
+            if(isDigit( n )) {
+                buffer[idx++] = n;
+            } else if( n == 0x08 ) { // BS
+                idx--;
+                if(idx < 0) {
+                    idx=0;
+                }
+                setupSerial.print("\010 \010");
+            } else if ( n == '\n' ) {
+                runFlag = FALSE;
+            } else if (idx > digits ) {
+                buffer[idx]='\0';
+                runFlag = FALSE;
+            }
+        }
+    }
+    return(atoi(buffer));
+}
 
 void drawModbusMenu() {
     int line;
@@ -280,7 +313,7 @@ void modbusMenu() {
                 case '1':
                     move(6,30);
                     setupSerial.setTimeout(1000);
-                    rtu=setupSerial.parseInt();
+                    rtu=getNumber(3);
                     delay(1000);
                     redraw = 1;
                     break;
@@ -354,7 +387,7 @@ void setupMenu() {
                 case '1':
                     setupSerial.print("Modbus");
                     modbusMenu();
-//                    delay(1000);
+                    //                    delay(1000);
                     redraw = 1;
                     break;
                 case '2':
