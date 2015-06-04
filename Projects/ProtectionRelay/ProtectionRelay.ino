@@ -118,22 +118,24 @@ void move(int x, int y) {
  * ModBus.
  */
 
-void ModBusPause() {
+uint8_t ModBusPause(int time) {
     uint32_t start = micros();
     uint8_t data;
     uint8_t loopFlag = TRUE;
 
     do {
-        if( setupSerial.available() ) {
-            if( (micros() - start) > 3647) {
+        if( Serial.available() ) {
+            if( (micros() - start) > time) {
                 loopFlag = FALSE;
             } else {
                 data = Serial.read();
+                start = micros();
                 nilThdSleep(1);
             }
         }
 
     } while (loopFlag) ;
+    return(Serial.read()); 
 }
 
 NIL_THREAD(ModBus, arg) {
@@ -141,11 +143,13 @@ NIL_THREAD(ModBus, arg) {
     uint8_t ipBuffer[32];
     uint8_t idx=0;
     uint8_t ready = 0;
+    uint8_t data = 0;
 
     while( TRUE ) {
         setupSerial.println("Entering ModBusPause....");
-        ModBusPause();
+        data = ModBusPause(3647);
         setupSerial.println("... Leaving ModBusPause");
+        setupSerial.println(data,HEX);
     }
 }
 
@@ -177,9 +181,11 @@ NIL_THREAD(Thread2, arg) {
              * Save into a semaphore protected  global variable.
              */
 
+            /*
             setupSerial.print("\t output = ");
             setupSerial.print(outputValue);
             setupSerial.println(" mA");
+            */
         }
 
         fifo.signalFree();
