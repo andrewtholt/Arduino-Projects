@@ -224,10 +224,10 @@ NIL_THREADS_TABLE_END()
         pinMode(TRIP, INPUT_PULLUP); 
         pinMode(RESET, INPUT_PULLUP); 
 
-        setupSerial.begin(9600);
+        setupSerial.begin(9600); // Second, soft serial port
         setupSerial.println("Setup port ready.");
 
-        Serial.begin(9600);
+        Serial.begin(9600); // H/w port, for ModBus
 
         // nilSysBegin();
         /*
