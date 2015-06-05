@@ -244,14 +244,18 @@ int getNumber(int digits) {
         while (setupSerial.available() > 0) {
             n = setupSerial.read();
             if(isDigit( n )) {
+                setupSerial.print( n );
                 buffer[idx++] = n;
-            } else if( n == 0x08 ) { // BS
+            } 
+            if( n == 0x08 ) { // BS
                 idx--;
                 if(idx < 0) {
                     idx=0;
                 }
                 setupSerial.print("\010 \010");
             } else if ( n == '\n' ) {
+                runFlag = FALSE;
+            } else if ( n == '\r' ) {
                 runFlag = FALSE;
             } else if (idx > digits ) {
                 buffer[idx]='\0';
@@ -260,6 +264,39 @@ int getNumber(int digits) {
         }
     }
     return(atoi(buffer));
+}
+
+void showSettings() {
+    int line;
+    int col;
+    uint8_t runFlag=TRUE;
+
+    line = 3;
+    col = 20;
+
+    cls();
+    move(line++, col);
+    setupSerial.print("Settings");
+    move(line++, col);
+    setupSerial.print("========");
+
+    line = 6;
+    col = 10;
+
+    move(line,col);
+    setupSerial.print("ModBus Address :");
+    setupSerial.println(rtu);
+
+    move(20, 20);
+    setupSerial.print("Press a key to continue");
+    while(runFlag) {
+        while (setupSerial.available() > 0) {
+            setupSerial.read();
+            runFlag=FALSE;
+        }
+    }
+
+
 }
 
 void drawModbusMenu() {
@@ -311,10 +348,9 @@ void modbusMenu() {
         if (r > 0) {
             switch (r) {
                 case '1':
-                    move(6,30);
+                    move(6,35);
                     setupSerial.setTimeout(1000);
                     rtu=getNumber(3);
-                    delay(1000);
                     redraw = 1;
                     break;
                 case '2':
@@ -362,7 +398,11 @@ void drawSetupMenu() {
 
     line++;
     move(line++, col);
-    setupSerial.print("q:    Exit Settings");
+    setupSerial.print("s:    Show Settings");
+
+    line++;
+    move(line++, col);
+    setupSerial.print("6:    Exit Settings");
 
     move(20, 20);
     setupSerial.print("Option> ");
@@ -387,12 +427,16 @@ void setupMenu() {
                 case '1':
                     setupSerial.print("Modbus");
                     modbusMenu();
-                    //                    delay(1000);
                     redraw = 1;
                     break;
                 case '2':
                     setupSerial.print("Power");
                     delay(1000);
+                    redraw = 1;
+                    break;
+                case 's':
+                    setupSerial.print("Show Settings");
+                    showSettings();
                     redraw = 1;
                     break;
                 case 'q':
