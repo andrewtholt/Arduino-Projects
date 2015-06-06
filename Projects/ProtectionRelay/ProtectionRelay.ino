@@ -7,11 +7,13 @@
 #include <SoftwareSerial.h>
 
 NilFIFO<int, 10> fifo;
+uint8_t rtu;
 
 // Macro to redefine Serial as NilSerial to save RAM.
 // Remove definition to use standard Arduino Serial.
 
-#define Serial NilSerial
+// #define Serial NilSerial
+#define RR 0x03
 
 #include <NilTimer1.h>
 const int analogInPin = A0;  // Analog input pin that the sensor is attached to
@@ -123,6 +125,7 @@ uint8_t ModBusPause(int time) {
     uint8_t data;
     uint8_t loopFlag = TRUE;
 
+    digitalWrite(13,LOW);
     do {
         if( Serial.available() ) {
             if( (micros() - start) > time) {
@@ -138,18 +141,67 @@ uint8_t ModBusPause(int time) {
     return(Serial.read()); 
 }
 
-NIL_THREAD(ModBus, arg) {
+uint8_t getByte() {
+
+    while( 0 == Serial.available() ) {
+        nilThdSleep(1);
+    }
+    
+    return(Serial.read());
+}
+
+NIL_THREAD(thModBus, arg) {
     uint8_t flag = 0;
     uint8_t ipBuffer[32];
     uint8_t idx=0;
-    uint8_t ready = 0;
+
     uint8_t data = 0;
+    uint8_t len=0;
+    uint8_t i;
+    int tmp;
 
     while( TRUE ) {
-        setupSerial.println("Entering ModBusPause....");
         data = ModBusPause(3647);
-        setupSerial.println("... Leaving ModBusPause");
-        setupSerial.println(data,HEX);
+        if ( data == rtu ) {
+            data = getByte();
+            ipBuffer[idx++] = data;
+            switch(data) {
+                case RR:
+                    len=8;
+                    break;
+                default:
+                    break;
+            }
+
+            data = getByte();
+            ipBuffer[idx++] = data;
+
+            data = getByte();
+            ipBuffer[idx++] = data;
+
+            data = getByte();
+            ipBuffer[idx++] = data;
+
+            data = getByte();
+            ipBuffer[idx++] = data;
+
+            data = getByte();
+            ipBuffer[idx++] = data;
+
+            data = getByte();
+            ipBuffer[idx++] = data;
+
+            Serial.write(ipBuffer[0]);
+
+            for(i=0;i<len;i++) {
+                delay(10);
+                String myString = String(ipBuffer[i]);
+                setupSerial.print(i);
+                setupSerial.print(":");
+                tmp=ipBuffer[i];
+                setupSerial.println(myString);
+            }
+        }
     }
 }
 
@@ -227,7 +279,6 @@ NIL_THREAD(Sensor, arg) {
         }
     }
 }
-uint8_t rtu;
 // 
 // Send ascii chars down the serial port, up to 'digits' and
 // return the result as an integer.  Ignore none numeric, except enter.
@@ -467,15 +518,16 @@ void setupMenu() {
     NIL_THREADS_TABLE_BEGIN()
     NIL_THREADS_TABLE_ENTRY(NULL, Sensor, NULL, waThread1, sizeof(waThread1))
     NIL_THREADS_TABLE_ENTRY(NULL, Thread2, NULL, waThread2, sizeof(waThread2))
-    NIL_THREADS_TABLE_ENTRY(NULL, ModBus, NULL, waModBus, sizeof(waModBus))
+    NIL_THREADS_TABLE_ENTRY(NULL, thModBus, NULL, waModBus, sizeof(waModBus))
 NIL_THREADS_TABLE_END()
     //------------------------------------------------------------------------------
 
     void setup() {
-        rtu=0;
+        rtu=1;
 
         pinMode(TRIP, INPUT_PULLUP);
         pinMode(RESET, INPUT_PULLUP);
+        pinMode(13, OUTPUT);
 
         setupSerial.begin(9600); // Second, soft serial port
         setupSerial.println("Setup port ready.");
@@ -501,7 +553,7 @@ NIL_THREADS_TABLE_END()
 
         // Read RTU_ID from EEPROM
         //
-        if (0 == RTU_ID ) {
+        if (rtu == RTU_ID ) {
             setupSerial.println("RTU ID Still set to default.");
             setupSerial.println("Entering setup menus on soft serial port.");
             setupMenu();
