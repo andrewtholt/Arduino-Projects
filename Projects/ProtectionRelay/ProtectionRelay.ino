@@ -12,7 +12,7 @@ uint8_t rtu;
 // Macro to redefine Serial as NilSerial to save RAM.
 // Remove definition to use standard Arduino Serial.
 
-// #define Serial NilSerial
+#define Serial NilSerial
 #define RR 0x03
 
 #include <NilTimer1.h>
