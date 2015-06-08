@@ -3,3 +3,5 @@ build-*
 *.swp
 *.ods#
 cscope.out
+modbus
+calc

@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 static unsigned char auchCRCHi[] = {
     0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41, 0x00,
@@ -46,12 +49,16 @@ static char     auchCRCLo[] = {0x00, 0xC0, 0xC1, 0x01, 0xC3, 0x03, 0x02, 0xC2, 0
 
 
 
-void main() {
+void main(int argc, char *argv[]) {
     /* The function returns the CRC as a unsigned short type  */
     /* *puchMsg message to calculate CRC upon  */
     /* usDataLen  quantity of bytes in message   */
 
-    uint8_t data[] = { 0x01, 0x03, 0x00, 0x64, 0x00,0x01,0xc5, 0xd5 };
+//    uint8_t data[] = { 0x01, 0x03, 0x00, 0x64, 0x00,0x01,0xc5, 0xd5 };
+//    uint8_t data[] = { 0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xc4, 0x0b};
+    uint8_t data[] = { 0x01, 0x03, 0x04, 0x00, 0x01, 0x00, 0x02};
+
+    uint8_t fileData[32];
 
     uint8_t  *puchMsg;
     uint16_t usDataLen;
@@ -61,10 +68,30 @@ void main() {
                                          * initialized   */
     unsigned        uIndex; /* will index into CRC lookup table   */
     int count=0;
+    int fd;
 
-    puchMsg = (uint8_t *)&data;
-    usDataLen = 8;
-//    usDataLen = (unsigned short) ficlStackPopInteger(vm->dataStack);
+    if( argc == 1 ) {
+        puchMsg = (uint8_t *)&data;
+        usDataLen = sizeof(data);
+    } else {
+        printf("Read file %s\n",argv[1]);
+
+        fd=open(argv[1],O_RDONLY);
+
+        if ( fd < 0 ) {
+            perror("calc");
+            exit(-1);
+        }
+
+        count=read(fd,&fileData[0],33);
+        if(count > 32 ) {
+            fprintf(stderr,"ERROR: File longer than 32 bytes.\n");
+            exit(-2);
+        }
+        puchMsg = (uint8_t *)&fileData;
+        usDataLen = count;
+    }
+    count=0;
 
         /* pass through message buffer   */
     while (usDataLen--) {
@@ -72,12 +99,7 @@ void main() {
         uIndex = uchCRCLo ^ *puchMsg++; /* calculate the CRC   */
         uchCRCLo = uchCRCHi ^ auchCRCHi[uIndex];
         uchCRCHi = auchCRCLo[uIndex];
-        printf("\tHI= %02x\n",uchCRCHi);
-        printf("\tLO= %02x\n\n",uchCRCLo);
     }
-    /*
-     *      * ficlStackPushInteger (vm->dataStack,uchCRCHi << 8 | uchCRCLo) ;
-     *           */
     printf("\nHI= %02x\n",uchCRCHi);
     printf("LO= %02x\n\n",uchCRCLo);
 }

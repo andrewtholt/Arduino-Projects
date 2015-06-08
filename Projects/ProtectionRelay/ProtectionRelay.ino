@@ -6,8 +6,11 @@
 
 #include <SoftwareSerial.h>
 
+#define BUFFSIZE 32
 NilFIFO<int, 10> fifo;
 uint8_t rtu;
+uint8_t modbusBuffer[BUFFSIZE];
+uint16_t modbusRegisters[16];
 
 // Macro to redefine Serial as NilSerial to save RAM.
 // Remove definition to use standard Arduino Serial.
@@ -29,7 +32,8 @@ int sensorValue = 0;        // value read.
 // Initialise ModBus CRC tables.
 //
 
-static unsigned char auchCRCHi[] = {
+// static unsigned char auchCRCHi[] = {
+static uint8_t auchCRCHi[] = {
     0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41, 0x00,
     0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81, 0x40, 0x00, 0xC1,
     0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81,
@@ -51,7 +55,7 @@ static unsigned char auchCRCHi[] = {
     0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81, 0x40
 };
 
-static char     auchCRCLo[] = {0x00, 0xC0, 0xC1, 0x01, 0xC3, 0x03, 0x02, 0xC2, 0xC6, 0x06,
+static uint8_t auchCRCLo[] = {0x00, 0xC0, 0xC1, 0x01, 0xC3, 0x03, 0x02, 0xC2, 0xC6, 0x06,
     0x07, 0xC7, 0x05, 0xC5, 0xC4, 0x04, 0xCC, 0x0C, 0x0D, 0xCD, 0x0F, 0xCF, 0xCE, 0x0E,
     0x0A, 0xCA, 0xCB, 0x0B, 0xC9, 0x09, 0x08, 0xC8, 0xD8, 0x18, 0x19, 0xD9, 0x1B, 0xDB, 0xDA,
     0x1A, 0x1E, 0xDE, 0xDF, 0x1F, 0xDD, 0x1D, 0x1C, 0xDC, 0x14, 0xD4, 0xD5, 0x15, 0xD7, 0x17,
@@ -71,11 +75,6 @@ static char     auchCRCLo[] = {0x00, 0xC0, 0xC1, 0x01, 0xC3, 0x03, 0x02, 0xC2, 0
     0x42, 0x43, 0x83, 0x41, 0x81, 0x80, 0x40
 };
 
-
-
-
-
-
 int V_RMS;
 int I_RMS;
 uint8_t RTU_ID = 0;
@@ -88,6 +87,29 @@ NIL_WORKING_AREA(waModBus, 64);
 
 SoftwareSerial setupSerial(10, 11); // RX, TX
 
+uint16_t calcCRC(uint8_t *data,int len) {
+    uint8_t  *puchMsg;
+    uint16_t usDataLen;
+    unsigned char   uchCRCHi = 0xFF;    /* high byte of CRC
+                                         * initialized   */
+    unsigned char   uchCRCLo = 0xFF;    /* low byte of CRC
+                                         * initialized   */
+    unsigned        uIndex; /* will index into CRC lookup table   */
+
+    puchMsg = (uint8_t *)data;
+    usDataLen = len;
+    while (usDataLen--) {
+        uIndex = uchCRCLo ^ *puchMsg++; /* calculate the CRC   */
+        uchCRCLo = uchCRCHi ^ auchCRCHi[uIndex];
+        uchCRCHi = auchCRCLo[uIndex];
+    }  
+    /*
+    setupSerial.println( uchCRCHi,HEX);
+    setupSerial.println( uchCRCHi, HEX);
+    */
+
+    return( uchCRCHi << 8 | uchCRCLo );
+}
 /*
  *
  * Screen control sequences
@@ -121,17 +143,17 @@ void move(int x, int y) {
  */
 
 uint8_t ModBusPause(int time) {
-    uint32_t start = micros();
-    uint8_t data;
+//    uint32_t start = micros();
+    int start = micros();
     uint8_t loopFlag = TRUE;
 
-    digitalWrite(13,LOW);
+    memset(&modbusBuffer,0,BUFFSIZE);
     do {
         if( Serial.available() ) {
             if( (micros() - start) > time) {
                 loopFlag = FALSE;
             } else {
-                data = Serial.read();
+                Serial.read();
                 start = micros();
                 nilThdSleep(1);
             }
@@ -143,65 +165,112 @@ uint8_t ModBusPause(int time) {
 
 uint8_t getByte() {
 
-    while( 0 == Serial.available() ) {
-        nilThdSleep(1);
-    }
-    
-    return(Serial.read());
+    int data;
+    uint8_t runFlag=TRUE;
+
+    do {
+        data=Serial.read();
+
+        if( data >= 0) {
+            runFlag = FALSE;
+        }
+        nilThdSleepMicroseconds(1);
+    } while(runFlag == TRUE);
+
+    return(data);
 }
 
-NIL_THREAD(thModBus, arg) {
-    uint8_t flag = 0;
-    uint8_t ipBuffer[32];
-    uint8_t idx=0;
-
-    uint8_t data = 0;
-    uint8_t len=0;
-    uint8_t i;
+int readMultipleRegisters() {
+    uint8_t modbusOut[32];
+    uint8_t len=8;
+    uint16_t byteCount;
+    uint16_t registerCount;
+    uint16_t startAddress;
+    int idx;
+    uint16_t res;
+    int address;
     int tmp;
 
+    memset(&modbusOut,0,sizeof(modbusOut));
+    for(idx=2;idx<len;idx++) {
+        modbusBuffer[idx] = getByte();
+    }
+
+    res=calcCRC(&modbusBuffer[0],len);
+    setupSerial.println( (uint16_t)res,HEX);
+    // 
+    // If this is 0 then it was a good packet.
+    //
+    if( 0 == res ) {
+    }
+
+    startAddress = (modbusBuffer[2] << 8) | modbusBuffer[3] ;
+    registerCount = ((modbusBuffer[4] << 8) | modbusBuffer[5]);
+    byteCount = registerCount * 2; 
+
+    modbusOut[0]=modbusBuffer[0];
+    modbusOut[1]=modbusBuffer[1];
+    modbusOut[2]=(uint8_t) (byteCount & 0xff);
+
+    address = startAddress;
+
+    for(address=startAddress;
+            address <(startAddress + registerCount);address++) {
+        digitalWrite(13,HIGH);
+    
+        tmp=modbusRegisters[address];
+        modbusOut[ 3 + ((address+1)*2)-1 ] = tmp &0xff;
+        modbusOut[ 3 + ((address+1)*2) ] = (tmp >> 8) &0xff;
+
+        digitalWrite(13,LOW);
+    }
+
+
+    len = 3 + byteCount ;
+    res=calcCRC(&modbusOut[0],7);
+
+    // modbusOut[len] = 0x09;
+    // modbusOut[len+1] = 0x10;
+    modbusOut[len] = (res >> 8) & 0xff;
+    modbusOut[len+1] = res ;
+    len +=2;
+
+
+    for(idx=0;idx<(len);idx++) {
+        Serial.write(modbusOut[idx]);
+    }
+    /*
+    Serial.write(modbusOut[1]);
+    Serial.write(modbusOut[2]);
+    Serial.write(modbusOut[3]);
+    Serial.write(modbusOut[4]);
+    Serial.write(modbusOut[5]);
+    Serial.write(modbusOut[6]);
+    Serial.write(modbusOut[7]);
+    */
+}
+
+
+NIL_THREAD(thModBus, arg) {
+    uint8_t data = 0;
+
     while( TRUE ) {
+        nilThdSleep(1);
         data = ModBusPause(3647);
         if ( data == rtu ) {
+            modbusBuffer[0] = data;
             data = getByte();
-            ipBuffer[idx++] = data;
+            modbusBuffer[1] = data;
+
             switch(data) {
                 case RR:
-                    len=8;
+                    readMultipleRegisters();
                     break;
                 default:
                     break;
             }
-
-            data = getByte();
-            ipBuffer[idx++] = data;
-
-            data = getByte();
-            ipBuffer[idx++] = data;
-
-            data = getByte();
-            ipBuffer[idx++] = data;
-
-            data = getByte();
-            ipBuffer[idx++] = data;
-
-            data = getByte();
-            ipBuffer[idx++] = data;
-
-            data = getByte();
-            ipBuffer[idx++] = data;
-
-            Serial.write(ipBuffer[0]);
-
-            for(i=0;i<len;i++) {
-                delay(10);
-                String myString = String(ipBuffer[i]);
-                setupSerial.print(i);
-                setupSerial.print(":");
-                tmp=ipBuffer[i];
-                setupSerial.println(myString);
-            }
         }
+        nilThdSleep(1);
     }
 }
 
@@ -217,6 +286,7 @@ NIL_THREAD(Thread2, arg) {
     int count = 0;
 
     while (TRUE) {
+        nilThdSleep(1);
         p = fifo.waitData(TIME_INFINITE);
         count++;
         /*
@@ -250,11 +320,12 @@ NIL_THREAD(Sensor, arg) {
     uint16_t n = 0;
     //    Serial.println("Start");
     nilTimer1Start(TIMER_DELAY);
-    uint32_t last = micros();
+    //    uint32_t last = micros();
     int missed = 0;
 
     // Execute while loop every 0.4 seconds.
     while (TRUE) {
+        nilThdSleep(1);
         nilTimer1Wait();
         sensorValue = analogRead(analogInPin);
 
@@ -516,18 +587,28 @@ void setupMenu() {
  * null to save RAM since the name is currently not used.
  */
     NIL_THREADS_TABLE_BEGIN()
+    NIL_THREADS_TABLE_ENTRY(NULL, thModBus, NULL, waModBus, sizeof(waModBus))
     NIL_THREADS_TABLE_ENTRY(NULL, Sensor, NULL, waThread1, sizeof(waThread1))
     NIL_THREADS_TABLE_ENTRY(NULL, Thread2, NULL, waThread2, sizeof(waThread2))
-    NIL_THREADS_TABLE_ENTRY(NULL, thModBus, NULL, waModBus, sizeof(waModBus))
 NIL_THREADS_TABLE_END()
     //------------------------------------------------------------------------------
 
     void setup() {
         rtu=1;
 
+        for(int i=0;i<16;i++) {
+            modbusRegisters[i] = i+1;
+        }
+
         pinMode(TRIP, INPUT_PULLUP);
         pinMode(RESET, INPUT_PULLUP);
         pinMode(13, OUTPUT);
+
+        digitalWrite(13,HIGH);
+        delay(100);
+        digitalWrite(13,LOW);
+        delay(100);
+
 
         setupSerial.begin(9600); // Second, soft serial port
         setupSerial.println("Setup port ready.");
@@ -573,5 +654,6 @@ NIL_THREADS_TABLE_END()
 
 void loop() {
     // put your main code here, to run repeatedly:
+    nilThdDelayMilliseconds(1000);
 
 }
