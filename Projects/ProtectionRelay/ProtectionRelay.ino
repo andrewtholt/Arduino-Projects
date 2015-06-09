@@ -28,7 +28,7 @@ const int analogInPin = A0;  // Analog input pin that the sensor is attached to
 const int TRIP = 2;
 const int RESET = 3;
 
-#define TIMER_DELAY 2500
+#define TIMER_DELAY 2000
 // #define TIMER_DELAY 400000
 
 // Global variables.  These will need a seamphore/mutex to serialise access.
@@ -322,6 +322,7 @@ NIL_THREAD(Sensor, arg) {
             modbusRegisters[V_RMS] = outputValue;
             count=0;
             total=0;
+            digitalWrite(13,HIGH);
         } else {
             count++;
         }
@@ -568,9 +569,8 @@ void setupMenu() {
  *
  */
     NIL_THREADS_TABLE_BEGIN()
-//    NIL_THREADS_TABLE_ENTRY(NULL, Thread2, NULL, waThread2, sizeof(waThread2))
-    NIL_THREADS_TABLE_ENTRY(NULL, thModBus, NULL, waModBus, sizeof(waModBus))
     NIL_THREADS_TABLE_ENTRY(NULL, Sensor, NULL, waThread1, sizeof(waThread1))
+    NIL_THREADS_TABLE_ENTRY(NULL, thModBus, NULL, waModBus, sizeof(waModBus))
 NIL_THREADS_TABLE_END()
 
     /*
