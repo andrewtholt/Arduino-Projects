@@ -327,7 +327,7 @@ NIL_THREAD(Thread2, arg) {
  * Collect data from current sensor.
  */
 NIL_THREAD(Sensor, arg) {
-    uint16_t n = 0;
+    // uint16_t n = 0;
     //    Serial.println("Start");
     nilTimer1Start(TIMER_DELAY);
     //    uint32_t last = micros();
