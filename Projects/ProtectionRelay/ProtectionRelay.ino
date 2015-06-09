@@ -12,6 +12,8 @@ uint8_t rtu;
 uint8_t modbusBuffer[BUFFSIZE];
 uint16_t modbusRegisters[16];
 
+SEMAPHORE_DECL(modbusSem,1);
+
 // Macro to redefine Serial as NilSerial to save RAM.
 // Remove definition to use standard Arduino Serial.
 
@@ -104,9 +106,9 @@ uint16_t calcCRC(uint8_t *data,int len) {
         uchCRCHi = auchCRCLo[uIndex];
     }  
     /*
-    setupSerial.println( uchCRCHi,HEX);
-    setupSerial.println( uchCRCHi, HEX);
-    */
+       setupSerial.println( uchCRCHi,HEX);
+       setupSerial.println( uchCRCHi, HEX);
+       */
 
     return( uchCRCHi << 8 | uchCRCLo );
 }
@@ -143,7 +145,7 @@ void move(int x, int y) {
  */
 
 uint8_t ModBusPause(int time) {
-//    uint32_t start = micros();
+    //    uint32_t start = micros();
     int start = micros();
     uint8_t loopFlag = TRUE;
 
@@ -216,13 +218,11 @@ int readMultipleRegisters() {
 
     for(address=startAddress;
             address <(startAddress + registerCount);address++) {
-        digitalWrite(13,HIGH);
-    
+
         tmp=modbusRegisters[address];
         modbusOut[ 3 + ((address+1)*2)-1 ] = tmp &0xff;
         modbusOut[ 3 + ((address+1)*2) ] = (tmp >> 8) &0xff;
 
-        digitalWrite(13,LOW);
     }
 
 
@@ -239,15 +239,16 @@ int readMultipleRegisters() {
     for(idx=0;idx<(len);idx++) {
         Serial.write(modbusOut[idx]);
     }
+    digitalWrite(13,LOW);
     /*
-    Serial.write(modbusOut[1]);
-    Serial.write(modbusOut[2]);
-    Serial.write(modbusOut[3]);
-    Serial.write(modbusOut[4]);
-    Serial.write(modbusOut[5]);
-    Serial.write(modbusOut[6]);
-    Serial.write(modbusOut[7]);
-    */
+       Serial.write(modbusOut[1]);
+       Serial.write(modbusOut[2]);
+       Serial.write(modbusOut[3]);
+       Serial.write(modbusOut[4]);
+       Serial.write(modbusOut[5]);
+       Serial.write(modbusOut[6]);
+       Serial.write(modbusOut[7]);
+       */
 }
 
 
@@ -258,6 +259,7 @@ NIL_THREAD(thModBus, arg) {
         nilThdSleep(1);
         data = ModBusPause(3647);
         if ( data == rtu ) {
+            digitalWrite(13,HIGH);
             modbusBuffer[0] = data;
             data = getByte();
             modbusBuffer[1] = data;
@@ -311,6 +313,14 @@ NIL_THREAD(Thread2, arg) {
         }
 
         fifo.signalFree();
+
+        nilSemWait(&modbusSem);
+
+
+        modbusRegisters[0] = outputValue;
+        //        modbusRegisters[0] = 0x1f;
+        nilSemSignal(&modbusSem);
+
     }
 }
 /*
@@ -578,20 +588,21 @@ void setupMenu() {
     setupSerial.println("Setup exited.");
 }
 
-//------------------------------------------------------------------------------
+
 /*
  * Threads static table, one entry per thread.  A thread's priority is
  * determined by its position in the table with highest priority first.
  *
  * These threads start with a null argument.  A thread's name is also
  * null to save RAM since the name is currently not used.
+ *
  */
     NIL_THREADS_TABLE_BEGIN()
     NIL_THREADS_TABLE_ENTRY(NULL, thModBus, NULL, waModBus, sizeof(waModBus))
     NIL_THREADS_TABLE_ENTRY(NULL, Sensor, NULL, waThread1, sizeof(waThread1))
     NIL_THREADS_TABLE_ENTRY(NULL, Thread2, NULL, waThread2, sizeof(waThread2))
 NIL_THREADS_TABLE_END()
-    //------------------------------------------------------------------------------
+
 
     void setup() {
         rtu=1;
