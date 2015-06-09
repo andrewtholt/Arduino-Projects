@@ -144,7 +144,7 @@ void move(int x, int y) {
  * ModBus.
  */
 
-uint8_t ModBusPause(int time) {
+uint8_t ModBusPause(unsigned int time) {
     //    uint32_t start = micros();
     int start = micros();
     uint8_t loopFlag = TRUE;
@@ -182,7 +182,7 @@ uint8_t getByte() {
     return(data);
 }
 
-int readMultipleRegisters() {
+void readMultipleRegisters() {
     uint8_t modbusOut[32];
     uint8_t len=8;
     uint16_t byteCount;
@@ -190,7 +190,7 @@ int readMultipleRegisters() {
     uint16_t startAddress;
     int idx;
     uint16_t res;
-    int address;
+    uint16_t address;
     int tmp;
 
     memset(&modbusOut,0,sizeof(modbusOut));
