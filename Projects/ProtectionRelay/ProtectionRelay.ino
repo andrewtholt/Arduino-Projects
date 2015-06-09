@@ -8,9 +8,12 @@
 
 #define BUFFSIZE 32
 NilFIFO<int, 10> fifo;
-uint8_t rtu;
+
 uint8_t modbusBuffer[BUFFSIZE];
-uint16_t modbusRegisters[16];
+uint16_t modbusRegisters[0x20];
+#define V_RMS 0 // Reg 0 is RMS
+#define RTU 0x11 // RTU id
+
 
 SEMAPHORE_DECL(modbusSem,1);
 
@@ -25,7 +28,6 @@ const int analogInPin = A0;  // Analog input pin that the sensor is attached to
 const int TRIP = 2;
 const int RESET = 3;
 
-int sensorValue = 0;        // value read.
 #define TIMER_DELAY 2500
 // #define TIMER_DELAY 400000
 
@@ -77,14 +79,17 @@ static uint8_t auchCRCLo[] = {0x00, 0xC0, 0xC1, 0x01, 0xC3, 0x03, 0x02, 0xC2, 0x
     0x42, 0x43, 0x83, 0x41, 0x81, 0x80, 0x40
 };
 
-int V_RMS;
-int I_RMS;
-uint8_t RTU_ID = 0;
+/*
+void writeModbusRegister(int reg, uint16_t v) {
+    nilSemWait(&modbusSem);
+    modbusRegisters[reg] = v;
+    nilSemSignal(&modbusSem);
+}
+*/
 
 //------------------------------------------------------------------------------
 // Declare a stack with 64 bytes beyond context switch and interrupt needs.
 NIL_WORKING_AREA(waThread1, 64);
-NIL_WORKING_AREA(waThread2, 64);
 NIL_WORKING_AREA(waModBus, 64);
 
 SoftwareSerial setupSerial(10, 11); // RX, TX
@@ -105,10 +110,6 @@ uint16_t calcCRC(uint8_t *data,int len) {
         uchCRCLo = uchCRCHi ^ auchCRCHi[uIndex];
         uchCRCHi = auchCRCLo[uIndex];
     }  
-    /*
-       setupSerial.println( uchCRCHi,HEX);
-       setupSerial.println( uchCRCHi, HEX);
-       */
 
     return( uchCRCHi << 8 | uchCRCLo );
 }
@@ -176,7 +177,7 @@ uint8_t getByte() {
         if( data >= 0) {
             runFlag = FALSE;
         }
-        nilThdSleepMicroseconds(1);
+        nilThdSleepMicroseconds(500);
     } while(runFlag == TRUE);
 
     return(data);
@@ -194,61 +195,81 @@ void readMultipleRegisters() {
     int tmp;
 
     memset(&modbusOut,0,sizeof(modbusOut));
+
     for(idx=2;idx<len;idx++) {
         modbusBuffer[idx] = getByte();
     }
 
     res=calcCRC(&modbusBuffer[0],len);
-    setupSerial.println( (uint16_t)res,HEX);
     // 
     // If this is 0 then it was a good packet.
     //
     if( 0 == res ) {
+        int rn=0;
+        uint8_t loByte;
+        uint8_t hiByte;
+
+        startAddress = 0;
+        registerCount = 0;
+        startAddress = (modbusBuffer[2] << 8) | modbusBuffer[3] ;
+        registerCount = ((modbusBuffer[4] << 8) | modbusBuffer[5]);
+        byteCount = registerCount * 2; 
+
+        modbusOut[0]=modbusBuffer[0];
+        modbusOut[1]=modbusBuffer[1];
+        modbusOut[2]=(uint8_t) (byteCount & 0xff);
+
+        idx = 3;
+        for(address=startAddress;
+                address <(startAddress + registerCount);address++) {
+
+            loByte = (modbusRegisters[address] & 0xff00 ) >> 8;
+            hiByte = (modbusRegisters[address] & 0xff );
+
+            modbusOut[idx++] = hiByte;
+            modbusOut[idx++] = loByte;
+                
+            /*
+        nilSysLock();
+            setupSerial.print(idx);
+            setupSerial.print("--");
+            setupSerial.print(hiByte,HEX);
+            setupSerial.print("--");
+            setupSerial.print(loByte,HEX);
+            setupSerial.println();
+
+        nilSysUnlock();
+            modbusOut[ 2 + ((address+1)*2)-1 ] = tmp &0xff;
+            modbusOut[ 2 + ((address+1)*2) ] = (tmp >> 8) &0xff;
+            */
+
+        }
+
+
+        len = 3 + byteCount ;
+        res=calcCRC(&modbusOut[0],(3+byteCount));
+
+        modbusOut[len] = (res >> 8) & 0xff;
+        modbusOut[len+1] = res ;
+        len +=2;
+
+
+        for(idx=0;idx<(len);idx++) {
+            Serial.write(modbusOut[idx]);
+        }
+
+        nilSysLock();
+        setupSerial.println("-------");
+        for(idx=startAddress;idx<(startAddress + registerCount);idx++) {
+
+            setupSerial.print(idx,HEX);
+            setupSerial.print(":");
+            setupSerial.println(modbusRegisters[idx],HEX);
+        }
+        nilSysUnlock();
+    } else {
+        // CRC error
     }
-
-    startAddress = (modbusBuffer[2] << 8) | modbusBuffer[3] ;
-    registerCount = ((modbusBuffer[4] << 8) | modbusBuffer[5]);
-    byteCount = registerCount * 2; 
-
-    modbusOut[0]=modbusBuffer[0];
-    modbusOut[1]=modbusBuffer[1];
-    modbusOut[2]=(uint8_t) (byteCount & 0xff);
-
-    address = startAddress;
-
-    for(address=startAddress;
-            address <(startAddress + registerCount);address++) {
-
-        tmp=modbusRegisters[address];
-        modbusOut[ 3 + ((address+1)*2)-1 ] = tmp &0xff;
-        modbusOut[ 3 + ((address+1)*2) ] = (tmp >> 8) &0xff;
-
-    }
-
-
-    len = 3 + byteCount ;
-    res=calcCRC(&modbusOut[0],7);
-
-    // modbusOut[len] = 0x09;
-    // modbusOut[len+1] = 0x10;
-    modbusOut[len] = (res >> 8) & 0xff;
-    modbusOut[len+1] = res ;
-    len +=2;
-
-
-    for(idx=0;idx<(len);idx++) {
-        Serial.write(modbusOut[idx]);
-    }
-    digitalWrite(13,LOW);
-    /*
-       Serial.write(modbusOut[1]);
-       Serial.write(modbusOut[2]);
-       Serial.write(modbusOut[3]);
-       Serial.write(modbusOut[4]);
-       Serial.write(modbusOut[5]);
-       Serial.write(modbusOut[6]);
-       Serial.write(modbusOut[7]);
-       */
 }
 
 
@@ -258,8 +279,7 @@ NIL_THREAD(thModBus, arg) {
     while( TRUE ) {
         nilThdSleep(1);
         data = ModBusPause(3647);
-        if ( data == rtu ) {
-            digitalWrite(13,HIGH);
+        if ( data == modbusRegisters[RTU] ) {
             modbusBuffer[0] = data;
             data = getByte();
             modbusBuffer[1] = data;
@@ -277,87 +297,41 @@ NIL_THREAD(thModBus, arg) {
 }
 
 /*
- * Calculate RMS
- */
-NIL_THREAD(Thread2, arg) {
-    int *p;
-    int outputValue;
-    //  long value[8];
-    int value;
-    int total = 0;
-    int count = 0;
-
-    while (TRUE) {
-        nilThdSleep(1);
-        p = fifo.waitData(TIME_INFINITE);
-        count++;
-        /*
-         *    Serial.print("sensor = " );
-         *    Serial.println(sensorValue);
-         */
-        value = map(sensorValue, 0, 1023, -20000, 20000);
-
-        total += sq(value);
-        if (8 == count) {
-            count = 0;
-            outputValue = sqrt(total / 8);
-            /*
-             * Save into a semaphore protected  global variable.
-             */
-
-            /*
-               setupSerial.print("\t output = ");
-               setupSerial.print(outputValue);
-               setupSerial.println(" mA");
-               */
-        }
-
-        fifo.signalFree();
-
-        nilSemWait(&modbusSem);
-
-
-        modbusRegisters[0] = outputValue;
-        //        modbusRegisters[0] = 0x1f;
-        nilSemSignal(&modbusSem);
-
-    }
-}
-/*
  * Collect data from current sensor.
  */
 NIL_THREAD(Sensor, arg) {
     uint16_t n = 0;
-    //    Serial.println("Start");
-    nilTimer1Start(TIMER_DELAY);
-    //    uint32_t last = micros();
-    int missed = 0;
+    uint16_t sensorValue = 0;        // value read.
+    int value = 0;        // value read.
+    int count=0;
+    int total = 0;
+    uint16_t outputValue;
 
-    // Execute while loop every 0.4 seconds.
+    // Execute while loop every 2.5 milli seconds.
     while (TRUE) {
-        nilThdSleep(1);
-        nilTimer1Wait();
-        sensorValue = analogRead(analogInPin);
+        digitalWrite(13,LOW);
 
-        /*
-         *    uint32_t t = micros();
-         *    Serial.print(t - last);
-         *    Serial.print(' ');
-         *    Serial.println(n++);
-         *    last = t;
-         */
-        int* p = fifo.waitFree(TIME_IMMEDIATE);
-        if (p == 0) {
-            missed++;
-            /*
-               Serial.print("==================== MISSED ");
-               Serial.println( missed );
-               Serial.println("============================");
-               */
+        nilThdSleepMicroseconds(TIMER_DELAY);
+
+        sensorValue = analogRead(analogInPin);
+        value = map(value, 0, 1023, -20000, 20000);
+        total += sq(value);
+
+        if( 8 == count ) {
+            outputValue = sqrt(total / 8);
+
+        nilSysLock();
+            setupSerial.println(outputValue);
+        nilSysUnlock();
+
+            modbusRegisters[V_RMS] = value;
+            digitalWrite(13,HIGH);
+            count = 0 ;
+            total = 0;
         } else {
-            *p = sensorValue;
-            fifo.signalData();
+            count++;
         }
+
     }
 }
 // 
@@ -417,7 +391,7 @@ void showSettings() {
 
     move(line,col);
     setupSerial.print("ModBus Address :");
-    setupSerial.println(rtu);
+    setupSerial.println(modbusRegisters[RTU]);
 
     move(20, 20);
     setupSerial.print("Press a key to continue");
@@ -450,7 +424,7 @@ void drawModbusMenu() {
     move(line++, col);
     setupSerial.print("1:    RTU Address");
     setupSerial.print(" (");
-    setupSerial.print(rtu);
+    setupSerial.print(modbusRegisters[RTU]);
     setupSerial.print(")");
 
     move(line++, col);
@@ -482,7 +456,7 @@ void modbusMenu() {
                 case '1':
                     move(6,35);
                     setupSerial.setTimeout(1000);
-                    rtu=getNumber(3);
+                    modbusRegisters[RTU]=getNumber(3);
                     redraw = 1;
                     break;
                 case '2':
@@ -598,31 +572,37 @@ void setupMenu() {
  *
  */
     NIL_THREADS_TABLE_BEGIN()
+//    NIL_THREADS_TABLE_ENTRY(NULL, Thread2, NULL, waThread2, sizeof(waThread2))
     NIL_THREADS_TABLE_ENTRY(NULL, thModBus, NULL, waModBus, sizeof(waModBus))
     NIL_THREADS_TABLE_ENTRY(NULL, Sensor, NULL, waThread1, sizeof(waThread1))
-    NIL_THREADS_TABLE_ENTRY(NULL, Thread2, NULL, waThread2, sizeof(waThread2))
 NIL_THREADS_TABLE_END()
 
-
+    /*
+     * START Here
+     */
     void setup() {
-        rtu=1;
 
-        for(int i=0;i<16;i++) {
-            modbusRegisters[i] = i+1;
+        for(int i=0;i<0x20;i++) {
+            modbusRegisters[i] = 0x1234;
         }
+
+        modbusRegisters[RTU]=0x01;
 
         pinMode(TRIP, INPUT_PULLUP);
         pinMode(RESET, INPUT_PULLUP);
         pinMode(13, OUTPUT);
 
-        digitalWrite(13,HIGH);
+        //        digitalWrite(13,HIGH);
         delay(100);
         digitalWrite(13,LOW);
         delay(100);
 
 
         setupSerial.begin(9600); // Second, soft serial port
-        setupSerial.println("Setup port ready.");
+        setupSerial.print("Setup port ready.");
+        setupSerial.print(RTU);
+        setupSerial.print("->");
+        setupSerial.println(modbusRegisters[RTU]);
 
         Serial.begin(9600); // H/w port, for ModBus
 
@@ -645,7 +625,7 @@ NIL_THREADS_TABLE_END()
 
         // Read RTU_ID from EEPROM
         //
-        if (rtu == RTU_ID ) {
+        if (0 == modbusRegisters[RTU] ) {
             setupSerial.println("RTU ID Still set to default.");
             setupSerial.println("Entering setup menus on soft serial port.");
             setupMenu();
