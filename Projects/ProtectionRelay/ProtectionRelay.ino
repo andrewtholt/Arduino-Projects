@@ -319,32 +319,17 @@ NIL_THREAD(Sensor, arg) {
 
         if( 8 == count ) {
             outputValue = sqrt(total / 8);
+            modbusRegisters[V_RMS] = outputValue;
+            count=0;
+            total=0;
+        } else {
+            count++;
+        }
     }
 }
 /*
  * Collect data from current sensor.
  */
-NIL_THREAD(Sensor, arg) {
-    // uint16_t n = 0;
-    //    Serial.println("Start");
-    nilTimer1Start(TIMER_DELAY);
-    //    uint32_t last = micros();
-    int missed = 0;
-
-        nilSysLock();
-            setupSerial.println(outputValue);
-        nilSysUnlock();
-
-            modbusRegisters[V_RMS] = value;
-            digitalWrite(13,HIGH);
-            count = 0 ;
-            total = 0;
-        } else {
-            count++;
-        }
-
-    }
-}
 // 
 // Send ascii chars down the serial port, up to 'digits' and
 // return the result as an integer.  Ignore none numeric, except enter.
