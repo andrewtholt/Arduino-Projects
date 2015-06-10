@@ -22,6 +22,11 @@ SEMAPHORE_DECL(modbusSem,1);
 
 #define Serial NilSerial
 #define RR 0x03
+// ModBus exception Codes
+//
+#define ILLEGAL_FUNCTION 0x01
+#define ILLEGAL_DATA_ADDRESS 0x02
+#define ILLEGAL_DATA_VALUE 0x03
 
 #include <NilTimer1.h>
 const int analogInPin = A0;  // Analog input pin that the sensor is attached to
@@ -183,7 +188,7 @@ uint8_t getByte() {
     return(data);
 }
 
-void readMultipleRegisters() {
+uint8_t readMultipleRegisters() {
     uint8_t modbusOut[32];
     uint8_t len=8;
     uint16_t byteCount;
@@ -192,6 +197,7 @@ void readMultipleRegisters() {
     int idx;
     uint16_t res;
     uint16_t address;
+    uint8_t errorCode=0;
     int tmp;
 
     memset(&modbusOut,0,sizeof(modbusOut));
@@ -215,6 +221,7 @@ void readMultipleRegisters() {
         registerCount = ((modbusBuffer[4] << 8) | modbusBuffer[5]);
         byteCount = registerCount * 2; 
 
+        nilSemWait(&modbusSem);
         modbusOut[0]=modbusBuffer[0];
         modbusOut[1]=modbusBuffer[1];
         modbusOut[2]=(uint8_t) (byteCount & 0xff);
@@ -244,6 +251,7 @@ void readMultipleRegisters() {
             */
 
         }
+        nilSemSignal(&modbusSem);
 
 
         len = 3 + byteCount ;
@@ -258,6 +266,7 @@ void readMultipleRegisters() {
             Serial.write(modbusOut[idx]);
         }
 
+        /*
         nilSysLock();
         setupSerial.println("-------");
         for(idx=startAddress;idx<(startAddress + registerCount);idx++) {
@@ -267,14 +276,17 @@ void readMultipleRegisters() {
             setupSerial.println(modbusRegisters[idx],HEX);
         }
         nilSysUnlock();
+        */
     } else {
         // CRC error
     }
+    return(errorCode);
 }
 
 
 NIL_THREAD(thModBus, arg) {
     uint8_t data = 0;
+    uint8_t errorCode;
 
     while( TRUE ) {
         nilThdSleep(1);
@@ -286,9 +298,10 @@ NIL_THREAD(thModBus, arg) {
 
             switch(data) {
                 case RR:
-                    readMultipleRegisters();
+                    errorCode = readMultipleRegisters();
                     break;
                 default:
+                    errorCode = ILLEGAL_FUNCTION;
                     break;
             }
         }
@@ -328,9 +341,6 @@ NIL_THREAD(Sensor, arg) {
         }
     }
 }
-/*
- * Collect data from current sensor.
- */
 // 
 // Send ascii chars down the serial port, up to 'digits' and
 // return the result as an integer.  Ignore none numeric, except enter.
