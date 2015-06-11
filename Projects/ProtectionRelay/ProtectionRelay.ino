@@ -7,10 +7,11 @@
 #include <SoftwareSerial.h>
 
 #define BUFFSIZE 32
+#define REGISTERS 0x20
 NilFIFO<int, 10> fifo;
 
 uint8_t modbusBuffer[BUFFSIZE];
-uint16_t modbusRegisters[0x20];
+uint16_t modbusRegisters[REGISTERS];
 #define V_RMS 0 // Reg 0 is RMS
 #define RTU 0x11 // RTU id
 
@@ -114,7 +115,7 @@ uint16_t calcCRC(uint8_t *data,int len) {
         uIndex = uchCRCLo ^ *puchMsg++; /* calculate the CRC   */
         uchCRCLo = uchCRCHi ^ auchCRCHi[uIndex];
         uchCRCHi = auchCRCLo[uIndex];
-    }  
+    }
 
     return( uchCRCHi << 8 | uchCRCLo );
 }
@@ -168,7 +169,7 @@ uint8_t ModBusPause(unsigned int time) {
         }
 
     } while (loopFlag) ;
-    return(Serial.read()); 
+    return(Serial.read());
 }
 
 uint8_t getByte() {
@@ -186,6 +187,36 @@ uint8_t getByte() {
     } while(runFlag == TRUE);
 
     return(data);
+}
+
+void sendPacket(uint8_t *packet) {
+    uint8_t idx;
+    uint8_t len;
+    uint16_t res;
+
+    // Is this a data packet, or an exception
+    // If an exception then bit 7 of [01] will 
+    // be set.
+
+    if( packet[1] & 0x80) { // Exception
+        len = 3;
+    } else { // OK
+        // Get length and add 3 to point to the CRC.
+        len = packet[2] + 3;
+    }
+    res=calcCRC(&modbusBuffer[0],len);
+
+    packet[len] = (res >> 8) & 0xff;
+    packet[len+1] = res ;
+    len +=2;
+        nilSysLock();
+        setupSerial.println(len,HEX);
+
+        nilSysUnlock();
+
+    for(idx=0;idx < len ;idx++) {
+        Serial.write(packet[idx]);
+    }
 }
 
 uint8_t readMultipleRegisters() {
@@ -207,7 +238,7 @@ uint8_t readMultipleRegisters() {
     }
 
     res=calcCRC(&modbusBuffer[0],len);
-    // 
+    //
     // If this is 0 then it was a good packet.
     //
     if( 0 == res ) {
@@ -219,8 +250,11 @@ uint8_t readMultipleRegisters() {
         registerCount = 0;
         startAddress = (modbusBuffer[2] << 8) | modbusBuffer[3] ;
         registerCount = ((modbusBuffer[4] << 8) | modbusBuffer[5]);
-        byteCount = registerCount * 2; 
+        byteCount = registerCount * 2;
 
+        if ( (startAddress + registerCount) > REGISTERS ) {
+            return ( ILLEGAL_DATA_ADDRESS );
+        }
         nilSemWait(&modbusSem);
         modbusOut[0]=modbusBuffer[0];
         modbusOut[1]=modbusBuffer[1];
@@ -238,57 +272,39 @@ uint8_t readMultipleRegisters() {
                 
             /*
         nilSysLock();
-            setupSerial.print(idx);
-            setupSerial.print("--");
-            setupSerial.print(hiByte,HEX);
-            setupSerial.print("--");
-            setupSerial.print(loByte,HEX);
-            setupSerial.println();
-
         nilSysUnlock();
-            modbusOut[ 2 + ((address+1)*2)-1 ] = tmp &0xff;
-            modbusOut[ 2 + ((address+1)*2) ] = (tmp >> 8) &0xff;
             */
-
         }
         nilSemSignal(&modbusSem);
-
-
-        len = 3 + byteCount ;
-        res=calcCRC(&modbusOut[0],(3+byteCount));
-
-        modbusOut[len] = (res >> 8) & 0xff;
-        modbusOut[len+1] = res ;
-        len +=2;
-
-
-        for(idx=0;idx<(len);idx++) {
-            Serial.write(modbusOut[idx]);
-        }
-
-        /*
-        nilSysLock();
-        setupSerial.println("-------");
-        for(idx=startAddress;idx<(startAddress + registerCount);idx++) {
-
-            setupSerial.print(idx,HEX);
-            setupSerial.print(":");
-            setupSerial.println(modbusRegisters[idx],HEX);
-        }
-        nilSysUnlock();
-        */
+        sendPacket(&modbusOut[0]);
     } else {
         // CRC error
     }
     return(errorCode);
 }
 
+void sendException(uint8_t function,uint8_t exception) {
+    uint8_t op[8];
+    uint16_t crc;
+
+    op[0] = modbusRegisters[RTU];
+    op[1] = function | 0x80;
+    op[2] = exception;
+
+    /*
+    crc = calcCRC(&op[0],3);
+    op[3] = crc & 0xff;
+    op[4] = (crc >> 8) & 0xff;
+    */
+    sendPacket(&op[0]);
+}
 
 NIL_THREAD(thModBus, arg) {
     uint8_t data = 0;
     uint8_t errorCode;
 
     while( TRUE ) {
+        errorCode = 0;
         nilThdSleep(1);
         data = ModBusPause(3647);
         if ( data == modbusRegisters[RTU] ) {
@@ -305,6 +321,12 @@ NIL_THREAD(thModBus, arg) {
                     break;
             }
         }
+
+        if(errorCode != 0) {
+            // needs error code, address & function
+            sendException(modbusBuffer[1],errorCode);
+        }
+
         nilThdSleep(1);
     }
 }
@@ -341,7 +363,7 @@ NIL_THREAD(Sensor, arg) {
         }
     }
 }
-// 
+//
 // Send ascii chars down the serial port, up to 'digits' and
 // return the result as an integer.  Ignore none numeric, except enter.
 // allow backspace.
@@ -359,7 +381,7 @@ int getNumber(int digits) {
             if(isDigit( n )) {
                 setupSerial.print( n );
                 buffer[idx++] = n;
-            } 
+            }
             if( n == 0x08 ) { // BS
                 idx--;
                 if(idx < 0) {
