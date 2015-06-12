@@ -353,6 +353,10 @@ uint8_t writeRegisters() {
         sendPacket(&modbusOut[0]);
         nilSemSignal(&modbusSem);
     }
+
+    errorCode=0;
+
+    return(errorCode);
     //
 }
 
