@@ -222,6 +222,9 @@ void sendPacket(uint8_t *packet) {
     packet[len+1] = res & 0xff ;
     len +=2;
 
+        nilSysLock();
+        setupSerial.println(len,HEX);
+        nilSysUnlock();
     for(idx=0;idx < len ;idx++) {
         Serial.write(packet[idx]);
     }
