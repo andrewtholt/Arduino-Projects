@@ -333,6 +333,9 @@ uint8_t writeRegisters() {
     }
 
     res=calcCRC(&modbusBuffer[0],len);
+        nilSysLock();
+        setupSerial.println(res,HEX);
+        nilSysUnlock();
     if( 0 == res ) {
         startAddress = reg2uint16(2);
         registerCount = reg2uint16(4);
