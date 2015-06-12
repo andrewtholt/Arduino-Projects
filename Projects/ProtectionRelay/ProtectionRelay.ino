@@ -338,6 +338,8 @@ uint8_t writeRegisters() {
         modbusBuffer[idx] = getByte();
     }
 
+    len = 7 + byteCount + 2;
+
     res=calcCRC(&modbusBuffer[0],len);
         nilSysLock();
         setupSerial.println(len,HEX);
