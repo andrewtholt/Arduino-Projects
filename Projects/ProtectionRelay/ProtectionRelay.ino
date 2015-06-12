@@ -348,17 +348,23 @@ uint8_t writeRegisters() {
     len = 7 + byteCount + 2;
 
     res=calcCRC(&modbusBuffer[0],len);
-        nilSysLock();
-        setupSerial.println(len,HEX);
-        setupSerial.println(res,HEX);
-        nilSysUnlock();
+
     if( 0 == res ) {
+        uint16_t tmpData;
+
         startAddress = reg2uint16(2);
         registerCount = reg2uint16(4);
         byteCount = modbusBuffer[6];
 
         for(uint8_t i=0; i<byteCount;i++ ) {
-            modbusRegisters[idx] = reg2uint16(6+(idx*2));
+            tmpData = reg2uint16(6+(idx*2));
+            modbusRegisters[idx] = tmpData;
+
+        nilSysLock();
+        setupSerial.println(idx,HEX);
+        setupSerial.println(tmpData,HEX);
+        nilSysUnlock();
+
         }
 
         nilSemWait(&modbusSem);
