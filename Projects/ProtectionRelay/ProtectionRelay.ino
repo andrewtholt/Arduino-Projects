@@ -22,7 +22,9 @@ SEMAPHORE_DECL(modbusSem,1);
 // Remove definition to use standard Arduino Serial.
 
 #define Serial NilSerial
-#define RR 0x03
+#define RR 0x03 // Read Multiple Registers
+#define WR 0x10 // Write registers
+
 // ModBus exception Codes
 //
 #define ILLEGAL_FUNCTION 0x01
@@ -299,6 +301,30 @@ void sendException(uint8_t function,uint8_t exception) {
     sendPacket(&op[0]);
 }
 
+uint8_t writeRegisters() {
+    uint8_t modbusOut[32];
+    uint8_t len=8;
+    uint16_t byteCount;
+    uint16_t registerCount;
+    uint16_t startAddress;
+    int idx;
+    uint16_t res;
+    uint16_t address;
+    uint8_t errorCode=0;
+    int tmp;
+
+    memset(&modbusOut,0,sizeof(modbusOut));
+
+    for(idx=2;idx<len;idx++) {
+        modbusBuffer[idx] = getByte();
+    }
+
+    res=calcCRC(&modbusBuffer[0],len);
+    if( 0 == res ) {
+    }
+    //
+}
+
 NIL_THREAD(thModBus, arg) {
     uint8_t data = 0;
     uint8_t errorCode;
@@ -315,6 +341,9 @@ NIL_THREAD(thModBus, arg) {
             switch(data) {
                 case RR:
                     errorCode = readMultipleRegisters();
+                    break;
+                case WR:
+                    errorCode = writeRegisters();
                     break;
                 default:
                     errorCode = ILLEGAL_FUNCTION;
