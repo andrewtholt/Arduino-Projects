@@ -312,7 +312,7 @@ void sendException(uint8_t function,uint8_t exception) {
 
 uint8_t writeRegisters() {
     uint8_t modbusOut[32];
-    uint8_t len=8;
+    uint8_t len=0;
     uint16_t byteCount;
     uint16_t registerCount;
     uint16_t startAddress;
@@ -324,7 +324,17 @@ uint8_t writeRegisters() {
 
     memset(&modbusOut,0,sizeof(modbusOut));
 
-    for(idx=2;idx<len;idx++) {
+    // 
+    // Get data starting with hi address, and
+    // ending with data byte count.
+    //
+    for(idx=2;idx < 7;idx++) {
+        modbusBuffer[idx] = getByte();
+    }
+
+    byteCount= modbusBuffer[6];
+
+    for(idx=7;idx < (7+byteCount+2);idx++) { // collect data and CRC
         modbusBuffer[idx] = getByte();
     }
 
