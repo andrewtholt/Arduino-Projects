@@ -356,6 +356,16 @@ uint8_t writeRegisters() {
         registerCount = reg2uint16(4);
         byteCount = modbusBuffer[6];
 
+        for(uint8_t i=0; i<registerCount;i++ ) {
+            tmpData = reg2uint16(7+(idx*2));
+            modbusRegisters[idx] = tmpData;
+
+            nilSysLock();
+            setupSerial.println(i,HEX);
+            setupSerial.println(tmpData,HEX);
+            nilSysUnlock();
+        }
+        /*
         for(uint8_t i=0; i<byteCount;i++ ) {
             tmpData = reg2uint16(6+(idx*2));
             modbusRegisters[idx] = tmpData;
@@ -365,6 +375,7 @@ uint8_t writeRegisters() {
             setupSerial.println(tmpData,HEX);
             nilSysUnlock();
         }
+        */
 
         nilSemWait(&modbusSem);
         modbusOut[0] = modbusBuffer[0];
