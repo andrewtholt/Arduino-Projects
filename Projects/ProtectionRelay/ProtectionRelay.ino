@@ -116,17 +116,11 @@ uint16_t calcCRC(uint8_t *data,int len) {
     puchMsg = (uint8_t *)data;
     usDataLen = len;
 
-    nilSysLock();
-
     while (usDataLen--) {
-        setupSerial.println(count,HEX);
-        setupSerial.println(*puchMsg,HEX);
-
         uIndex = uchCRCLo ^ *puchMsg++; /* calculate the CRC   */
         uchCRCLo = uchCRCHi ^ auchCRCHi[uIndex];
         uchCRCHi = auchCRCLo[uIndex];
     }
-    nilSysUnlock();
 
     return( uchCRCHi << 8 | uchCRCLo );
 }
@@ -225,7 +219,7 @@ void sendPacket(uint8_t *packet) {
     res=calcCRC(&modbusBuffer[0],len);
 
     packet[len] = (res >> 8) & 0xff;
-    packet[len+1] = res ;
+    packet[len+1] = res & 0xff ;
     len +=2;
 
     for(idx=0;idx < len ;idx++) {
