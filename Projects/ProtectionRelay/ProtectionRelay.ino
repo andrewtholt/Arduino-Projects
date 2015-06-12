@@ -263,12 +263,8 @@ uint8_t readMultipleRegisters() {
         startAddress = 0;
         registerCount = 0;
 
-        // startAddress = (modbusBuffer[2] << 8) | modbusBuffer[3] ;
         startAddress = reg2uint16(2);
-
-        // registerCount = ((modbusBuffer[4] << 8) | modbusBuffer[5]);
         registerCount = reg2uint16(4);
-
         byteCount = registerCount * 2;
 
         if ( (startAddress + registerCount) > REGISTERS ) {
@@ -338,6 +334,24 @@ uint8_t writeRegisters() {
 
     res=calcCRC(&modbusBuffer[0],len);
     if( 0 == res ) {
+        startAddress = reg2uint16(2);
+        registerCount = reg2uint16(4);
+        byteCount = modbusBuffer[6];
+
+        for(uint8_t i=0; i<byteCount;i++ ) {
+            modbusRegisters[idx] = reg2uint16(6+(idx*2));
+        }
+
+        nilSemWait(&modbusSem);
+        modbusOut[0] = modbusBuffer[0];
+        modbusOut[1] = modbusBuffer[1];
+        modbusOut[2] = modbusBuffer[2];
+        modbusOut[3] = modbusBuffer[3];
+        modbusOut[4] = 0;
+        modbusOut[5] = registerCount;
+
+        sendPacket(&modbusOut[0]);
+        nilSemSignal(&modbusSem);
     }
     //
 }
