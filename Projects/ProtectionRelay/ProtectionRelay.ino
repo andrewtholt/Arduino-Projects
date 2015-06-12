@@ -204,7 +204,14 @@ void sendPacket(uint8_t *packet) {
         len = 3;
     } else { // OK
         // Get length and add 3 to point to the CRC.
-        len = packet[2] + 3;
+        switch(packet[1]) {
+            case RR: 
+                len = packet[2] + 3;
+                break;
+            case WR:
+                len = 4;
+                break;
+        }
     }
     res=calcCRC(&modbusBuffer[0],len);
 
