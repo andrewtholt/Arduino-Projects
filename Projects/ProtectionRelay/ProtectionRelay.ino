@@ -357,8 +357,8 @@ uint8_t writeRegisters() {
         byteCount = modbusBuffer[6];
 
         for(uint8_t i=0; i<registerCount;i++ ) {
-            tmpData = reg2uint16(7+(idx*2));
-            modbusRegisters[startAddress + idx] = tmpData;
+            tmpData = reg2uint16(7+(i*2));
+            modbusRegisters[startAddress + i] = tmpData;
 
             nilSysLock();
             setupSerial.println(startAddress,HEX);
