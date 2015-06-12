@@ -105,6 +105,8 @@ SoftwareSerial setupSerial(10, 11); // RX, TX
 uint16_t calcCRC(uint8_t *data,int len) {
     uint8_t  *puchMsg;
     uint16_t usDataLen;
+    uint8_t count=0;
+
     unsigned char   uchCRCHi = 0xFF;    /* high byte of CRC
                                          * initialized   */
     unsigned char   uchCRCLo = 0xFF;    /* low byte of CRC
@@ -113,15 +115,18 @@ uint16_t calcCRC(uint8_t *data,int len) {
 
     puchMsg = (uint8_t *)data;
     usDataLen = len;
+
+    nilSysLock();
+
     while (usDataLen--) {
+        setupSerial.println(count,HEX);
+        setupSerial.println(*puchMsg,HEX);
+
         uIndex = uchCRCLo ^ *puchMsg++; /* calculate the CRC   */
         uchCRCLo = uchCRCHi ^ auchCRCHi[uIndex];
         uchCRCHi = auchCRCLo[uIndex];
     }
-            nilSysLock();
-            setupSerial.println(uchCRCHi,HEX);
-            setupSerial.println(uchCRCLo,HEX);
-            nilSysUnlock();
+    nilSysUnlock();
 
     return( uchCRCHi << 8 | uchCRCLo );
 }
