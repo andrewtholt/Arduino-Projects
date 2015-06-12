@@ -222,9 +222,6 @@ void sendPacket(uint8_t *packet) {
     packet[len+1] = res & 0xff ;
     len +=2;
 
-        nilSysLock();
-        setupSerial.println(len,HEX);
-        nilSysUnlock();
     for(idx=0;idx < len ;idx++) {
         Serial.write(packet[idx]);
     }
@@ -279,7 +276,8 @@ uint8_t readMultipleRegisters() {
         if ( (startAddress + registerCount) > REGISTERS ) {
             return ( ILLEGAL_DATA_ADDRESS );
         }
-        nilSemWait(&modbusSem);
+        nilSemWait(&modbusSem); // LOCK
+
         modbusOut[0]=modbusBuffer[0];
         modbusOut[1]=modbusBuffer[1];
         modbusOut[2]=(uint8_t) (byteCount & 0xff);
@@ -299,7 +297,8 @@ uint8_t readMultipleRegisters() {
         nilSysUnlock();
             */
         }
-        nilSemSignal(&modbusSem);
+        nilSemSignal(&modbusSem); // Release
+
         sendPacket(&modbusOut[0]);
     } else {
         // CRC error
