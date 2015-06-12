@@ -211,10 +211,6 @@ void sendPacket(uint8_t *packet) {
     packet[len] = (res >> 8) & 0xff;
     packet[len+1] = res ;
     len +=2;
-        nilSysLock();
-        setupSerial.println(len,HEX);
-
-        nilSysUnlock();
 
     for(idx=0;idx < len ;idx++) {
         Serial.write(packet[idx]);
