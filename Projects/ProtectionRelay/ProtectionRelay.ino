@@ -330,6 +330,7 @@ uint8_t writeRegisters() {
 
     res=calcCRC(&modbusBuffer[0],len);
         nilSysLock();
+        setupSerial.println(len,HEX);
         setupSerial.println(res,HEX);
         nilSysUnlock();
     if( 0 == res ) {
