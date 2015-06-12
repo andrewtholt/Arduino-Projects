@@ -221,6 +221,18 @@ void sendPacket(uint8_t *packet) {
     }
 }
 
+//
+// Given the index of a byte in the incoming data buffer
+// convert it and the byte following it into a 16 bit value.
+//
+uint16_t reg2uint16(int idx) {
+    uint16_t res;
+
+    res = (modbusBuffer[idx] << 8) | modbusBuffer[idx+1] ;
+
+    return(res);
+}
+
 uint8_t readMultipleRegisters() {
     uint8_t modbusOut[32];
     uint8_t len=8;
@@ -250,8 +262,13 @@ uint8_t readMultipleRegisters() {
 
         startAddress = 0;
         registerCount = 0;
-        startAddress = (modbusBuffer[2] << 8) | modbusBuffer[3] ;
-        registerCount = ((modbusBuffer[4] << 8) | modbusBuffer[5]);
+
+        // startAddress = (modbusBuffer[2] << 8) | modbusBuffer[3] ;
+        startAddress = reg2uint16(2);
+
+        // registerCount = ((modbusBuffer[4] << 8) | modbusBuffer[5]);
+        registerCount = reg2uint16(4);
+
         byteCount = registerCount * 2;
 
         if ( (startAddress + registerCount) > REGISTERS ) {
