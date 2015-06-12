@@ -118,6 +118,10 @@ uint16_t calcCRC(uint8_t *data,int len) {
         uchCRCLo = uchCRCHi ^ auchCRCHi[uIndex];
         uchCRCHi = auchCRCLo[uIndex];
     }
+            nilSysLock();
+            setupSerial.println(uchCRCHi,HEX);
+            setupSerial.println(uchCRCLo,HEX);
+            nilSysUnlock();
 
     return( uchCRCHi << 8 | uchCRCLo );
 }
@@ -360,11 +364,6 @@ uint8_t writeRegisters() {
             tmpData = reg2uint16(7+(i*2));
             modbusRegisters[startAddress + i] = tmpData;
 
-            nilSysLock();
-            setupSerial.println(startAddress,HEX);
-            setupSerial.println(i,HEX);
-            setupSerial.println(tmpData,HEX);
-            nilSysUnlock();
         }
         /*
         for(uint8_t i=0; i<byteCount;i++ ) {
