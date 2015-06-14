@@ -1,7 +1,9 @@
 build-*
 
 *.swp
-*.ods#
+*.o
+*.ods
 cscope.out
 modbus
+modbusRegisters
 calc
