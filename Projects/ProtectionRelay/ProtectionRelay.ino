@@ -16,6 +16,7 @@ void setup() {
     setupSerial.begin(9600);
     setupSerial.println("Ready");
     modbus m(1,setupSerial);
+    m.getPacket();
 
 }
 
