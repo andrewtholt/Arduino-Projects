@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <SoftwareSerial.h>
 
 #define RR 0x03 // Read Registers
 #define WR 0x10 // Write Registers
@@ -77,19 +76,13 @@ private:
     }
     
 public:
-    modbus(uint8_t id, int speed) {
+    
+    modbus(uint8_t id, SoftwareSerial debug) {
         
+        debug.println("modbus created");
         rtu = id;
-        
-        if(0 == speed)
-            speed = 9600;
-        
-        Serial.begin(speed);
-        
-        if(DEBUG) {
-            SoftwareSerial setupSerial(10, 11);
-        }
     }
+    
     uint8_t getPacket() {
         uint8_t len; // including CRC
         uint8_t data;
