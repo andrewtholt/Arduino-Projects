@@ -1,9 +1,14 @@
 #define DEBUG true
 
 #include <SoftwareSerial.h>
-#include "../ArduinoLibs/modbus.cpp"
 
 SoftwareSerial setupSerial(10, 11);
+
+void debug(char *msg) {
+    setupSerial.println(msg);
+}
+#include "../ArduinoLibs/modbus.cpp"
+
 
 void setup() {
     
@@ -18,3 +23,4 @@ void loop() {
   // put your main code here, to run repeatedly: 
   
 }
+

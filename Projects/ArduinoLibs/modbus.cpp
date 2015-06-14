@@ -76,10 +76,10 @@ private:
     }
     
 public:
-    
-    modbus(uint8_t id, SoftwareSerial debug) {
+    modbus(uint8_t id, SoftwareSerial d) {
         
-        debug.println("modbus created");
+        debug("ModBus created.");
+        d.println("modbus created");
         rtu = id;
     }
     
@@ -90,14 +90,14 @@ public:
         bool forMe = false;
         
         do {
-            debug.println("Waiting for the gap ...");
+            debug("Waiting for the gap ...");
             waitForTheGap();
             // 
             // OK, interpacket gap found 
             // Now wait a long time for a byte.
             //
         } while (!waitForMe());
-        debug.println("... done");
+        debug("... done");
         // 
         // So there's been a gap, followed by a byte that has
         // matched my rtu id.
@@ -110,7 +110,7 @@ public:
             if( validForFunctionCode() ) {
                 switch(packet[2]) {
                     case RR:
-                        debug.println("RR");
+                        debug("RR");
                         break;
                     case WR:
                         break;
