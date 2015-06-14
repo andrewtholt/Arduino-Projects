@@ -72,6 +72,7 @@ private:
     // Is the code valid.
     //
     bool validForFunctionCode() {
+        debug("Check function code.");
         return((packet[2] == RR ) || (packet[2] == WR));
     }
     
@@ -106,6 +107,9 @@ public:
         Serial.setTimeout(2);
         len = Serial.readBytes(&packet[1],1);
         debug(String(len));
+        debug(String((uint8_t)packet[0]));
+        debug(String((uint8_t)packet[1]));
+
         
         if(len > 0 ) {
             if( validForFunctionCode() ) {
