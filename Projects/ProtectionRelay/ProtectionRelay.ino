@@ -4,7 +4,7 @@
 
 SoftwareSerial setupSerial(10, 11);
 
-void debug(char *msg) {
+void debug(String msg) {
     setupSerial.println(msg);
 }
 #include "../ArduinoLibs/modbus.cpp"
