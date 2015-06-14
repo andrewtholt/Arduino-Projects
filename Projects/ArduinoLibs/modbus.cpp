@@ -90,12 +90,14 @@ public:
         bool forMe = false;
         
         do {
+            debug.println("Waiting for the gap ...");
             waitForTheGap();
             // 
             // OK, interpacket gap found 
             // Now wait a long time for a byte.
             //
         } while (!waitForMe());
+        debug.println("... done");
         // 
         // So there's been a gap, followed by a byte that has
         // matched my rtu id.
@@ -108,6 +110,7 @@ public:
             if( validForFunctionCode() ) {
                 switch(packet[2]) {
                     case RR:
+                        debug.println("RR");
                         break;
                     case WR:
                         break;
