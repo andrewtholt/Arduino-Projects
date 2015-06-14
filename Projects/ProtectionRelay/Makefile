@@ -1,9 +1,9 @@
 BOARD_TAG    = uno
-ARDUINO_LIBS =
+ARDUINO_LIBS = SoftwareSerial
 MY_TARGET = build-uno/ProtectionRelay.hex
 
 # include ../../Arduino.mk
-build-uno/ProtectionRelay.hex:
+# build-uno/ProtectionRelay.hex:
 include ../../Arduino.mk
 
 install:
