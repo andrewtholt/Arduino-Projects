@@ -3,6 +3,7 @@
 #include "../ArduinoLibs/modbus.cpp"
 
 void setup() {
+    Serial.begin(9600);
     modbus m(1, 9600);
 
 }
