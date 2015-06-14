@@ -105,6 +105,7 @@ public:
         //
         Serial.setTimeout(2);
         len = Serial.readBytes(&packet[1],1);
+        debug(String(len));
         
         if(len > 0 ) {
             if( validForFunctionCode() ) {
