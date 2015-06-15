@@ -1,6 +1,8 @@
 #define DEBUG false
 
 #define TIMER_DELAY 2000
+#define ILLEGAL_FUNCTION 1
+#define ILLEGAL_DATA_ADDRESS 2
 
 #include <NilRTOS.h>
 

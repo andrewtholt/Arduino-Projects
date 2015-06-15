@@ -174,6 +174,18 @@ public:
         sendPacket(reply,(3+(2*regCount)));
     }
 
+    void unimplementedFunction() {
+        uint8_t reply[8];
+
+        memset(reply,0,sizeof(reply));
+
+        reply[0] = packet[0];
+        reply[1] = packet[1] | 0x80;
+        reply[2] = ILLEGAL_FUNCTION;
+
+        sendPacket(reply,3);
+
+    }
     void processPacket(uint8_t len) {
         uint8_t functionCode;
 
@@ -191,6 +203,8 @@ public:
                 break;
             case WR:
                 break;
+            default:
+                unimplementedFunction();
 
         }
     }
