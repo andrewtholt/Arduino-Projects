@@ -6,6 +6,8 @@
 class modbus {
     
 private:
+    SEMAPHORE_DECL(modbusCommsSem,1);
+
     char packet[32];
     uint8_t rtu;
     
@@ -33,9 +35,6 @@ private:
         bool exitFlag=false;
 
         uint16_t tmp = r.getRegister(0);
-        debug("Register 0 is");
-        debug(String(tmp));
-        debug("=============");
         
         do { // loop until we timeout
                 Serial.setTimeout(4);
@@ -83,12 +82,9 @@ private:
 
     }
     
-    modbusRegisters r;
 public:
 
-    modbus(uint8_t id, SoftwareSerial d) {
-        
-        debug("ModBus created.");
+    modbus(uint8_t id) {
         rtu = id;
     
     }
@@ -108,10 +104,11 @@ public:
         uint8_t ret;
         uint8_t i=1;
         bool runFlag;
+        const int timeout=3;
 
         memset(packet,0,32);
         runFlag=true;
-        debug("Waiting for the gap ...");
+        
         waitForTheGap();
         // 
         // OK, interpacket gap found 
@@ -125,9 +122,9 @@ public:
             i=1;
 
             // Put short delay here.
-            debug("Here ");
+            nilSemWait(&modbusCommsSem);
             while( runFlag ) {
-                Serial.setTimeout(2);
+                Serial.setTimeout(timeout);
                 len=Serial.readBytes(&packet[i++],1);
 
                 if( len == 0 ) {
@@ -135,7 +132,8 @@ public:
                     runFlag = false;
                 }
             }
-            dump(&packet[0],ret);
+            nilSemSignal(&modbusCommsSem);
+//            dump(&packet[0],ret);
         } else {
             ret=0;
         }
@@ -168,26 +166,20 @@ public:
 
         for(uint8_t idx=0;idx < regCount; idx++) {
             tmp = r.getRegister(address+idx);
+
             reply[3+(2*idx)] = (tmp >> 8) & 0xff;
             reply[4+(2*idx)] = tmp  & 0xff;
         }
 
         sendPacket(reply,(3+(2*regCount)));
-
-        for(uint8_t idx=0;idx<10;idx++) {
-            debug(String(reply[idx]));
-        }
-
     }
+
     void processPacket(uint8_t len) {
         uint8_t functionCode;
 
         uint16_t crc=calcCRC(&packet[0],len);
 
-        if( 0 == crc ) {
-            debug("CRC OK");
-        } else {
-            debug("CRC Error");
+        if( 0 != crc ) {
             return;
         }
 
@@ -195,7 +187,6 @@ public:
 
         switch(functionCode) {
             case RR:
-                debug("Read Registers");
                 processReadRegisters();
                 break;
             case WR:

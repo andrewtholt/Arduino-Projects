@@ -1,6 +1,14 @@
-#define DEBUG true
+#define DEBUG false
+
+#define TIMER_DELAY 2000
+
+#include <NilRTOS.h>
 
 #include <SoftwareSerial.h>
+
+SEMAPHORE_DECL(modbusSem,1);
+const int analogInPin = A0;  // Analog input pin that the sensor is attached to
+
 
 static unsigned char auchCRCHi[] = { 
     0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41, 0x00,
@@ -68,20 +76,15 @@ uint16_t calcCRC(char *address, uint8_t len) {
         uchCRCHi = auchCRCLo[uIndex];
     }
 
-    /*
-    setupSerial.print("HI=");
-    setupSerial.println(uchCRCHi,HEX);
-    setupSerial.print("LO=");
-    setupSerial.println(uchCRCLo,HEX);
-    */
-
     result = (uchCRCHi << 8) | (uchCRCLo & 0xff);
     return(result);
 }
 
 
 void debug(String msg) {
+    nilSysLock();
     setupSerial.println(msg);
+    nilSysUnlock();
 }
 
 void dump(char *addr,uint8_t len) {
@@ -95,30 +98,81 @@ void dump(char *addr,uint8_t len) {
     }
 }
 #include "../ArduinoLibs/modbusRegisters.cpp"
+modbusRegisters r;
 #include "../ArduinoLibs/modbus.cpp"
 
 
-modbus m(1,setupSerial);
+modbus m(1);
+// 
+// START
+//
 void setup() {
+
+    pinMode(13, OUTPUT);
+    digitalWrite(13,LOW);
+
     Serial.begin(9600);
     setupSerial.begin(9600);
-    setupSerial.println("Ready");
+    delay(100);
+    debug(String(r.getRegister(0)));
+    debug(String(r.getRegister(1)));
+    delay(100);
+
+    nilSysBegin();
 
 }
 
-void loop() {
-    uint8_t len = m.getPacket();
+NIL_THREAD(thModBus,arg) {
+    uint8_t len;
+    while( true ) {
+        len = m.getPacket();
 
-    if( len > 0 ) {
-
-        m.processPacket(len);
-
-        if( String(m.forMe()) ) {
-            if( m.validFunctionCode() ) {
-                debug("OK");
-            }
+        if( len > 0 ) {
+            m.processPacket(len);
         }
     }
-
 }
 
+NIL_THREAD(Sensor,arg) {
+    uint16_t sensorValue=0;
+
+    while(true) {
+        digitalWrite(13,LOW);
+        nilThdSleepMicroseconds(TIMER_DELAY);
+
+        sensorValue = analogRead( analogInPin );
+
+//        r.setRegister(0, 10);
+        r.setRegister(0, sensorValue);
+        digitalWrite(13,HIGH);
+        nilThdSleepMicroseconds(TIMER_DELAY);
+    }
+}
+
+NIL_WORKING_AREA(waModBus, 64);
+NIL_WORKING_AREA(waSensor, 64);
+
+
+void loop() {
+    nilThdDelayMilliseconds(1000);
+
+    /*
+       uint8_t len = m.getPacket();
+
+       if( len > 0 ) {
+
+       m.processPacket(len);
+
+       if( String(m.forMe()) ) {
+       if( m.validFunctionCode() ) {
+       debug("OK");
+       }
+       }
+       }
+       */
+}
+
+NIL_THREADS_TABLE_BEGIN()
+NIL_THREADS_TABLE_ENTRY(NULL, Sensor, NULL, waSensor, sizeof(waSensor))
+NIL_THREADS_TABLE_ENTRY(NULL, thModBus, NULL, waModBus, sizeof(waModBus))
+NIL_THREADS_TABLE_END()

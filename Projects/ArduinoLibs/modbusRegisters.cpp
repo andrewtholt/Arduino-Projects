@@ -3,25 +3,44 @@
 #define SIZE 32
 // #define TEST
 
-
 class modbusRegisters {
-    int size=SIZE ;
+
     uint16_t reg[SIZE];
+
+    private:
+#ifndef TEST
+    SEMAPHORE_DECL(modbusSem,1);
+#endif
 
     public:
     modbusRegisters() {
-        for(int i=0; i<size; i++) {
+        for(int i=0; i<SIZE; i++) {
             reg[i]=i;
         }
 
     }
 
     uint16_t getRegister(uint8_t address) {
-        return(reg[address]);
+        uint16_t r;
+
+#ifndef TEST
+        nilSemWait(&modbusSem);
+#endif
+        r=reg[address];
+#ifndef TEST
+        nilSemSignal(&modbusSem);
+#endif
+        return(r);
     }
 
     void setRegister(uint8_t address,uint16_t value) {
+#ifndef TEST
+        nilSemWait(&modbusSem);
+#endif
         reg[address]=value;
+#ifndef TEST
+        nilSemSignal(&modbusSem);
+#endif
     }
 
     // 
@@ -32,8 +51,8 @@ class modbusRegisters {
     void getMultipleRegisters(uint16_t *data,uint8_t address,uint8_t count) {
         uint8_t limit;
 
-        if ((address+count) > size ) 
-            limit = size;
+        if ((address+count) > SIZE ) 
+            limit = SIZE;
         else
             limit = address+count;
             
@@ -47,8 +66,8 @@ class modbusRegisters {
 
     void setMultipleRegisters(uint16_t *data,uint8_t address,uint8_t count) {
         uint8_t limit;
-        if ((address+count) > size ) 
-            limit = size;
+        if ((address+count) > SIZE ) 
+            limit = SIZE;
         else
             limit = address+count;
 
@@ -60,7 +79,7 @@ class modbusRegisters {
     }
 #ifdef TEST
     void dump() {
-        for (int i=0;i<size;i++) {
+        for (int i=0;i<SIZE;i++) {
             printf("%04x ",reg[i]);
             if ((i > 0) && (i % 8 )== 0) {
                 printf("\n");
@@ -83,8 +102,8 @@ int main() {
 
     r.dump();
 
-    printf("set 1 \n");
-    r.setRegister(1,0xffff);
+    printf("set 0 \n");
+    r.setRegister(0,0xffff);
 
     printf("get 0 0x%04x\n", r.getRegister(1));
 
