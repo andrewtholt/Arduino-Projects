@@ -62,6 +62,8 @@ void main(int argc, char *argv[]) {
 
     uint8_t  *puchMsg;
     uint16_t usDataLen;
+    uint16_t result=0;
+
     unsigned char   uchCRCHi = 0xFF;    /* high byte of CRC
                                          * initialized   */
     unsigned char   uchCRCLo = 0xFF;    /* low byte of CRC
@@ -102,6 +104,10 @@ void main(int argc, char *argv[]) {
     }
     printf("\nHI= %02x\n",uchCRCHi);
     printf("LO= %02x\n\n",uchCRCLo);
+
+    result = (uchCRCHi << 8) | (uchCRCLo & 0xff);
+
+    printf("\nResult = %04x\n", result);
 }
 
 
