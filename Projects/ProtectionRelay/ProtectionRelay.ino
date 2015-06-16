@@ -126,6 +126,7 @@ void setup() {
 
 NIL_THREAD(thModBus,arg) {
     uint8_t len;
+
     while( true ) {
         len = m.getPacket();
 
@@ -137,16 +138,29 @@ NIL_THREAD(thModBus,arg) {
 
 NIL_THREAD(Sensor,arg) {
     uint16_t sensorValue=0;
+    int value;
+    int total=0;
+    uint8_t count=0;
+    uint8_t outputValue;
 
     while(true) {
         digitalWrite(13,LOW);
-        nilThdSleepMicroseconds(TIMER_DELAY);
+//        nilThdSleepMicroseconds(TIMER_DELAY);
 
         sensorValue = analogRead( analogInPin );
+        value = map(value, 0, 1023, -20000, 20000);
+        total += sq(value);
 
-//        r.setRegister(0, 10);
-        r.setRegister(0, sensorValue);
-        digitalWrite(13,HIGH);
+        if( 8 == count ) {
+            outputValue = sqrt(total / 8);
+            r.setRegister(0, outputValue);
+            count = 0;
+            total = 0 ;
+            digitalWrite(13,HIGH);
+        } else {
+            count++;
+        }
+
         nilThdSleepMicroseconds(TIMER_DELAY);
     }
 }
