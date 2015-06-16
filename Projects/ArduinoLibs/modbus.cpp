@@ -189,13 +189,19 @@ public:
         uint8_t reply[32];
         uint8_t byteCount;
         uint16_t data;
+        bool exception=false;
 
         memset(reply,0,sizeof(reply));
 
         address = toRegister(packet[2],packet[3]);
         regCount = toRegister(packet[4],packet[5]);
 
-        if( (address + regCount) > SIZE) {
+
+        exception= ((address + regCount) > SIZE);
+        exception = exception || (( address + regCount ) < 0x10);
+
+//        if( (address + regCount) > SIZE) {
+        if( exception ) {
             reply[0] = packet[0];
             reply[1] = packet[1] | 0x80;
             reply[2] = ILLEGAL_DATA_ADDRESS;
