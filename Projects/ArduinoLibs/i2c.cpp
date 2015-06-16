@@ -9,6 +9,7 @@
  *  
  */
 
+#define NOTYET 1
 #include <Wire.h> //I2C library
 
 SEMAPHORE_DECL(modbusSem,1);
@@ -59,6 +60,7 @@ class eeprom {
 };
 
 
+/*
 void i2c_eeprom_write_byte( int deviceaddress, unsigned int eeaddress, byte data ) {
     int rdata = data;
     Wire.beginTransmission(deviceaddress);
@@ -67,22 +69,10 @@ void i2c_eeprom_write_byte( int deviceaddress, unsigned int eeaddress, byte data
     Wire.send(rdata);
     Wire.endTransmission();
 }
-
-/*
-// WARNING: address is a page address, 6-bit end will wrap around
-// also, data can be maximum of about 30 bytes, because the Wire library has a buffer of 32 bytes
-void i2c_eeprom_write_page( int deviceaddress, unsigned int eeaddresspage, byte* data, byte length ) {
-Wire.beginTransmission(deviceaddress);
-Wire.send((int)(eeaddresspage >> 8)); // MSB
-Wire.send((int)(eeaddresspage & 0xFF)); // LSB
-byte c;
-for ( c = 0; c < length; c++)
-Wire.send(data[c]);
-Wire.endTransmission();
-}
 */
-
+/*
 byte i2c_eeprom_read_byte( int deviceaddress, unsigned int eeaddress ) {
+i/
     byte rdata = 0xFF;
     Wire.beginTransmission(deviceaddress);
     Wire.send((int)(eeaddress >> 8)); // MSB
@@ -92,10 +82,17 @@ byte i2c_eeprom_read_byte( int deviceaddress, unsigned int eeaddress ) {
     if (Wire.available()) rdata = Wire.receive();
     return rdata;
 }
-
+*/
+#ifndef NOTYET
+// These multi byte reads need some attention.
+// Where there are restrictions, then enforce them.
+// Reads across page boundaries ?
+// 
+// Return the bytes read or written.
+//
 // maybe let's not read more than 30 or 32 bytes at a time!
+//
 void i2c_eeprom_read_buffer( int deviceaddress, unsigned int eeaddress, byte *buffer, int length ) {
-    int c = 0;
 
     Wire.beginTransmission(deviceaddress);
     Wire.send((int)(eeaddress >> 8)); // MSB
@@ -103,7 +100,19 @@ void i2c_eeprom_read_buffer( int deviceaddress, unsigned int eeaddress, byte *bu
     Wire.endTransmission();
     Wire.requestFrom(deviceaddress,length);
 
-    for ( c = 0; c < length; c++ ) {
+    for ( int c = 0; c < length; c++ ) {
         if (Wire.available()) buffer[c] = Wire.receive();
     }
 }
+// WARNING: address is a page address, 6-bit end will wrap around
+// also, data can be maximum of about 30 bytes, because the Wire library has a buffer of 32 bytes
+void i2c_eeprom_write_page( int deviceaddress, unsigned int eeaddresspage, byte* data, byte length ) {
+    Wire.beginTransmission(deviceaddress);
+    Wire.send((int)(eeaddresspage >> 8)); // MSB
+    Wire.send((int)(eeaddresspage & 0xFF)); // LSB
+
+    for ( byte c = 0; c < length; c++)
+        Wire.send(data[c]);
+    Wire.endTransmission();
+}
+#endif
