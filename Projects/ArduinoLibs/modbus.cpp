@@ -151,6 +151,7 @@ public:
             reply[0] = packet[0];
             reply[1] = packet[1] | 0x80;
             reply[2] = ILLEGAL_DATA_ADDRESS;
+            sendPacket(reply,3);
             return 0;
         }
 
@@ -184,6 +185,40 @@ public:
     void processWriteRegisters() {
         uint8_t functionCode;
         uint16_t address;
+        uint16_t regCount;
+        uint8_t reply[32];
+        uint8_t byteCount;
+        uint16_t data;
+
+        memset(reply,0,sizeof(reply));
+
+        address = toRegister(packet[2],packet[3]);
+        regCount = toRegister(packet[4],packet[5]);
+
+        if( (address + regCount) > SIZE) {
+            reply[0] = packet[0];
+            reply[1] = packet[1] | 0x80;
+            reply[2] = ILLEGAL_DATA_ADDRESS;
+            sendPacket(reply,3);
+            return ;
+        }
+        byteCount = packet[6];
+
+        for(uint8_t idx=0;idx < byteCount;idx+=2) {
+            data = toRegister( packet[idx+7],packet[idx+8] );
+            r.setRegister( (address +(idx/2)) , data);
+        }
+
+        reply[0] = packet[0];  // RTU
+        reply[1] = packet[1];  // Function code
+        reply[2] = packet[2];  // Start Address hi
+        reply[3] = packet[3];  // Start Address lo
+        reply[4] = packet[4];  // Start Address hi
+        reply[5] = packet[5];  // Start Address lo
+
+        sendPacket(reply,6);
+        return ;
+
     }
 
 
