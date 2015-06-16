@@ -47,31 +47,6 @@ private:
         } while(!exitFlag);
     }
     
-    bool waitForMe() {
-        bool exitFlag = false;
-        uint8_t data;
-        
-        
-        do {
-            Serial.setTimeout(60000); // a whole minute
-            data = Serial.readBytes(&packet[0],1);
-            
-            if ( 0 == data ) { // we timedout
-                        exitFlag = false;
-            } else {
-                exitFlag = true;
-            }
-            
-        } while( !exitFlag );
-        // 
-        // byte 0 in packet is the rtu id, so is this for me ?
-        //
-        // if not go to the top and wait for a gap.
-        // if it is go get the rest:
-        //
-        return (bool) ( packet[0] == rtu );
-    }
-   
     void sendPacket(uint8_t *address,int len) {
 
         uint16_t crc = calcCRC((char *)address,len);
@@ -80,6 +55,14 @@ private:
 
         Serial.write(address, (len+2));
 
+    }
+
+    uint16_t toRegister(uint8_t hi, uint8_t lo) {
+        uint16_t res;
+
+        res = (hi << 8) | (lo & 0xff);
+
+        return(res);
     }
     
 public:
@@ -155,10 +138,21 @@ public:
         uint8_t regCountHi = packet[4];
         uint8_t regCountLo = packet[5];
 
+        // 
+        // First check if the address and count are legal
+        //
+
         memset(reply,0,32);
 
         address = (addressHi << 8) | (addressLo & 0xff);
         regCount = (regCountHi << 8) | (regCountLo & 0xff);
+
+        if( (address + regCount) > 32) {
+            reply[0] = packet[0];
+            reply[1] = packet[1] | 0x80;
+            reply[2] = ILLEGAL_DATA_ADDRESS;
+            return 0;
+        }
 
         reply[0]=rtu;
         reply[1]=func;
@@ -186,9 +180,15 @@ public:
         sendPacket(reply,3);
 
     }
+
+    void processWriteRegisters() {
+        uint8_t functionCode;
+        uint16_t address;
+    }
+
+
     void processPacket(uint8_t len) {
         uint8_t functionCode;
-
         uint16_t crc=calcCRC(&packet[0],len);
 
         if( 0 != crc ) {
@@ -202,10 +202,10 @@ public:
                 processReadRegisters();
                 break;
             case WR:
+                processWriteRegisters();
                 break;
             default:
                 unimplementedFunction();
-
         }
     }
 };
