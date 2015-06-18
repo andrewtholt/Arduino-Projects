@@ -7,6 +7,9 @@
 #include <NilRTOS.h>
 
 #include <SoftwareSerial.h>
+#include "../ArduinoLibs/display.cpp"
+display LED(5,4,3,1);
+
 
 SEMAPHORE_DECL(modbusSem,1);
 const int analogInPin = A0;  // Analog input pin that the sensor is attached to
@@ -116,9 +119,16 @@ void setup() {
     Serial.begin(9600);
     setupSerial.begin(9600);
     delay(100);
-    debug(String(r.getRegister(0)));
-    debug(String(r.getRegister(1)));
-    delay(100);
+
+    LED.startup();
+    LED.brightness(50);
+    LED.clear();
+
+    LED.writeDecNumber(r.getRegister(0),0);
+    LED.writeDecNumber(r.getRegister(0x11),4);
+
+    delay(1000);
+    LED.clear();
 
     nilSysBegin();
 
@@ -138,7 +148,7 @@ NIL_THREAD(thModBus,arg) {
 
 NIL_THREAD(Sensor,arg) {
     uint16_t sensorValue=0;
-    int value;
+    int value=0;
     int total=0;
     uint8_t count=0;
     uint8_t outputValue;
@@ -148,7 +158,7 @@ NIL_THREAD(Sensor,arg) {
 //        nilThdSleepMicroseconds(TIMER_DELAY);
 
         sensorValue = analogRead( analogInPin );
-        value = map(value, 0, 1023, -20000, 20000);
+        value = map(sensorValue, 0, 1023, -20000, 20000);
         total += sq(value);
 
         if( 8 == count ) {
