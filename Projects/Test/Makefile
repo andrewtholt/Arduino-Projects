@@ -1,5 +1,5 @@
 BOARD_TAG    = uno
-ARDUINO_LIBS =
+ARDUINO_LIBS = LedControl
 NAME = Test
 # include ../../Arduino.mk
 include ../../Arduino.mk
