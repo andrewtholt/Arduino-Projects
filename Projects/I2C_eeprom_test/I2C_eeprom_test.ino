@@ -13,8 +13,9 @@
 // Due
 // #define SERIAL_OUT SerialUSB
 
-I2C_eeprom ee(0x50);
+// I2C_eeprom ee(0x50);
 // I2C_eeprom ee(0xa0);
+I2C_eeprom ee(0xae);
 
 uint32_t start, diff, totals = 0;
 
@@ -43,7 +44,7 @@ void setup()
 {
   ee.begin();
 
-  SERIAL_OUT.begin(57600); 
+  SERIAL_OUT.begin(9600); 
   while (!SERIAL_OUT); // wait for SERIAL_OUT port to connect. Needed for Leonardo only
   
   SERIAL_OUT.print("Demo I2C eeprom library ");
