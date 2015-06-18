@@ -123,7 +123,7 @@ public:
         return(ret);
     }
       
-    uint8_t processReadRegisters() {
+    void processReadRegisters() {
         uint16_t address;
         uint16_t regCount;
         uint16_t tmp;
@@ -152,7 +152,7 @@ public:
             reply[1] = packet[1] | 0x80;
             reply[2] = ILLEGAL_DATA_ADDRESS;
             sendPacket(reply,3);
-            return 0;
+            return;
         }
 
         reply[0]=rtu;
