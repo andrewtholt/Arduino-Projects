@@ -1,5 +1,5 @@
 BOARD_TAG    = uno
-ARDUINO_LIBS = SoftwareSerial NilRTOS NilTimer1 LedControl
+ARDUINO_LIBS = SoftwareSerial NilRTOS NilTimer1 LedControl EEPROM
 MY_TARGET = build-uno/ProtectionRelay.hex
 
 # include ../../Arduino.mk

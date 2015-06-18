@@ -5,6 +5,7 @@
 #define ILLEGAL_DATA_ADDRESS 2
 
 #include <NilRTOS.h>
+#include <EEPROM.h>
 
 #include <SoftwareSerial.h>
 #include "../ArduinoLibs/display.cpp"
@@ -107,11 +108,12 @@ modbusRegisters r;
 #include "../ArduinoLibs/modbus.cpp"
 
 
-modbus m(1);
+modbus *m;
 // 
 // START
 //
 void setup() {
+    byte value;
 
     pinMode(13, OUTPUT);
     digitalWrite(13,LOW);
@@ -124,12 +126,24 @@ void setup() {
     LED.brightness(50);
     LED.clear();
 
+    value = EEPROM.read(0);
     LED.writeDecNumber(r.getRegister(0),0);
-    LED.writeDecNumber(r.getRegister(0x11),4);
+    LED.writeHexNumber(value,4);
+
+    if ( 0xff == value ) {
+        LED.clear();
+        delay(250);
+        LED.writeHexNumber(value,4);
+        delay(250);
+        LED.clear();
+        delay(250);
+        LED.writeHexNumber(value,4);
+    }
 
     delay(1000);
     LED.clear();
 
+    m=new modbus(1);
     nilSysBegin();
 
 }
@@ -138,10 +152,10 @@ NIL_THREAD(thModBus,arg) {
     uint8_t len;
 
     while( true ) {
-        len = m.getPacket();
+        len = m->getPacket();
 
         if( len > 0 ) {
-            m.processPacket(len);
+            m->processPacket(len);
         }
     }
 }
