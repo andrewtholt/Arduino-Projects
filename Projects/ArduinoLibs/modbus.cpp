@@ -11,19 +11,29 @@ private:
     char packet[32];
     uint8_t rtu;
     
-    void addCRC() {
-    }
-    uint8_t getByte() {
-        uint8_t data;
+    int getByte(int ms) {
+        int data;
         bool runFlag;
+        systime_t now;
+        systime_t then;
         
+        now = nilTimeNow();
+        then = now + MS2ST(ms);
+
         runFlag = true;
+
         do {
             data = Serial.read();
             if( data >= 0) {
                 runFlag = false;
+            } else {
+                now = nilTimeNow();
+                if ( now > then ) {
+                    data=-1;  // ... meaning timed out
+                    runFlag = false;
+                }
             }
-            
+            nilThdSleepMicroseconds(100);
         } while( runFlag );
         
         return(data);
@@ -31,16 +41,17 @@ private:
     }
     
     void waitForTheGap() {
-        uint8_t data;
+        int data;
         bool exitFlag=false;
 
         uint16_t tmp = r.getRegister(0);
         
         do { // loop until we timeout
-                Serial.setTimeout(4);
-                data = Serial.readBytes(&packet[0],1);
+                // Serial.setTimeout(4);
+                // data = Serial.readBytes(&packet[0],1);
                 
-                if( data == 0) { // we timed out and nothing was read.
+                data = getByte(4);
+                if( data < 0) { // we timed out and nothing was read.
                     exitFlag=true;
                 }
                 
@@ -86,6 +97,7 @@ public:
         uint8_t len;
         uint8_t ret;
         uint8_t i=1;
+        int data;
         bool runFlag;
         const int timeout=3;
 
@@ -97,16 +109,20 @@ public:
         // OK, interpacket gap found 
         // Now wait a long time for a byte.
         //
-        Serial.setTimeout(60000); // wait a minute ...
+        // Serial.setTimeout(60000); // wait a minute ...
+        // len=Serial.readBytes(packet,1); 
+        //
 
-        len=Serial.readBytes(packet,1); // 1st 4 bytes are always the same ...
-                                        // rtu,func, address hi, address lo
-        if (len > 0 ) { // possible len == 4
+        data = getByte(10000); // wait for 10 second
+                                       
+        if (data > 0 ) { 
+            packet[0] = (uint8_t) data;
             i=1;
 
             // Put short delay here.
             nilSemWait(&modbusCommsSem);
             while( runFlag ) {
+                /*
                 Serial.setTimeout(timeout);
                 len=Serial.readBytes(&packet[i++],1);
 
@@ -114,6 +130,15 @@ public:
                     ret = i-1;
                     runFlag = false;
                 }
+                */
+                data=getByte(3);
+                if (data < 0) {
+                    ret = i;
+                    runFlag = false;
+                } else {
+                    packet[i++] = (uint8_t)data;
+                }
+
             }
             nilSemSignal(&modbusCommsSem);
 //            dump(&packet[0],ret);
