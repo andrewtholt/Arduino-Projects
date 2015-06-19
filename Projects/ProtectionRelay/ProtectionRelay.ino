@@ -8,6 +8,9 @@
 #include <EEPROM.h>
 
 #include <SoftwareSerial.h>
+#include <NilSerial.h>
+#define Serial NilSerial
+
 #include "../ArduinoLibs/display.cpp"
 display LED(5,4,3,1);
 
@@ -107,13 +110,51 @@ void dump(char *addr,uint8_t len) {
 modbusRegisters r;
 #include "../ArduinoLibs/modbus.cpp"
 
+byte getReply() {
+    while( setupSerial.available() == 0 );
+    return(setupSerial.read());
+}
+
+int getNumber(int digits) {
+    uint8_t idx=0;
+
+    char buffer[digits+1];
+    char n;
+    uint8_t runFlag=TRUE;
+
+    while(runFlag == TRUE ) { 
+        while (setupSerial.available() > 0) {
+            n = setupSerial.read();
+            if(isDigit( n )) {
+                setupSerial.print( n );
+                buffer[idx++] = n;
+            }   
+            if( n == 0x08 ) { // BS
+                idx--;
+                if(idx < 0) {
+                    idx=0;
+                }   
+                setupSerial.print("\010 \010");
+            } else if ( n == '\n' ) { 
+                runFlag = FALSE;
+            } else if ( n == '\r' ) { 
+                runFlag = FALSE;
+            } else if (idx > digits ) { 
+                buffer[idx]='\0';
+                runFlag = FALSE;
+            }   
+        }   
+    }   
+    return(atoi(buffer));
+}
 
 modbus *m;
 // 
 // START
 //
 void setup() {
-    byte value;
+    byte rtu;
+    int data;
 
     pinMode(13, OUTPUT);
     digitalWrite(13,LOW);
@@ -121,37 +162,83 @@ void setup() {
     Serial.begin(9600);
     setupSerial.begin(9600);
     delay(100);
+    setupSerial.listen();
+    setupSerial.println("Ready");
 
     LED.startup();
     LED.brightness(50);
     LED.clear();
 
-    value = EEPROM.read(0);
-    LED.writeDecNumber(r.getRegister(0),0);
-    LED.writeHexNumber(value,4);
+    rtu = EEPROM.read(0);
 
-    if ( 0xff == value ) {
-        LED.clear();
-        delay(250);
-        LED.writeHexNumber(value,4);
-        delay(250);
-        LED.clear();
-        delay(250);
-        LED.writeHexNumber(value,4);
+    LED.writeDecNumber(r.getRegister(0),0);
+    LED.writeHexNumber(rtu,4);
+
+    if ( 0xff == rtu ) {
+        bool exitFlag = false;
+        byte reply;
+
+        digitalWrite(13,HIGH);
+
+        do {
+            LED.clear();
+            delay(250);
+            LED.writeHexNumber(rtu,4);
+            delay(250);
+            LED.clear();
+            delay(250);
+            LED.writeHexNumber(rtu,4);
+
+            setupSerial.println();
+            setupSerial.println("No modbus address set, please enter one now.");
+            setupSerial.print("Modbus Address>");
+
+            rtu=getNumber(3);
+
+            setupSerial.println();
+            setupSerial.print("Modbus Address=");
+
+            LED.clear();
+            LED.writeHexNumber(rtu,4);
+            setupSerial.println(rtu);
+
+            setupSerial.print("Is this correct [y/N] ? ");
+
+            reply = getReply();
+            setupSerial.println();
+            setupSerial.println(reply);
+
+            if ( 'y' == reply ) {
+                EEPROM.write(0,rtu);
+                delay(500);
+                LED.clear();
+                rtu = EEPROM.read(0);
+                if( 0xff == rtu ) {
+                    setupSerial.println("No Change");
+                    exitFlag = false;
+                } else {
+                    exitFlag=true;
+                }
+            }
+        } while( false == exitFlag);
+
     }
 
+    digitalWrite(13,LOW);
+    LED.writeHexNumber(rtu,4);
     delay(1000);
     LED.clear();
+    LED.writeHexNumber(rtu,4);
 
-    m=new modbus(1);
+    m=new modbus(rtu);
     nilSysBegin();
-
 }
 
 NIL_THREAD(thModBus,arg) {
     uint8_t len;
 
     while( true ) {
+        nilThdSleepMicroseconds(100);
         len = m->getPacket();
 
         if( len > 0 ) {
@@ -160,7 +247,7 @@ NIL_THREAD(thModBus,arg) {
     }
 }
 
-NIL_THREAD(Sensor,arg) {
+NIL_THREAD(thSensor,arg) {
     uint16_t sensorValue=0;
     int value=0;
     int total=0;
@@ -168,9 +255,6 @@ NIL_THREAD(Sensor,arg) {
     uint8_t outputValue;
 
     while(true) {
-        digitalWrite(13,LOW);
-//        nilThdSleepMicroseconds(TIMER_DELAY);
-
         sensorValue = analogRead( analogInPin );
         value = map(sensorValue, 0, 1023, -20000, 20000);
         total += sq(value);
@@ -180,7 +264,6 @@ NIL_THREAD(Sensor,arg) {
             r.setRegister(0, outputValue);
             count = 0;
             total = 0 ;
-            digitalWrite(13,HIGH);
         } else {
             count++;
         }
@@ -189,8 +272,17 @@ NIL_THREAD(Sensor,arg) {
     }
 }
 
+NIL_THREAD(thUI,arg) {
+
+    while(true) {
+        LED.writeDecNumber(r.getRegister(0),0);
+        nilThdSleepMilliseconds(500);
+    }
+}
+
 NIL_WORKING_AREA(waModBus, 64);
 NIL_WORKING_AREA(waSensor, 64);
+NIL_WORKING_AREA(waUI, 64);
 
 
 void loop() {
@@ -212,7 +304,8 @@ void loop() {
        */
 }
 
-NIL_THREADS_TABLE_BEGIN()
-NIL_THREADS_TABLE_ENTRY(NULL, Sensor, NULL, waSensor, sizeof(waSensor))
-NIL_THREADS_TABLE_ENTRY(NULL, thModBus, NULL, waModBus, sizeof(waModBus))
+    NIL_THREADS_TABLE_BEGIN()
+    NIL_THREADS_TABLE_ENTRY(NULL, thSensor, NULL, waSensor, sizeof(waSensor))
+    NIL_THREADS_TABLE_ENTRY(NULL, thModBus, NULL, waModBus, sizeof(waModBus))
+    NIL_THREADS_TABLE_ENTRY(NULL, thUI, NULL, waUI, sizeof(waUI))
 NIL_THREADS_TABLE_END()
