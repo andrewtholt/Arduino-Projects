@@ -16,37 +16,45 @@ class display {
         // 0 is the extreme left,
         // 4,is the right hand display
         //
-        void writeDecNumber(uint8_t v,uint8_t digit) {
+        void writeDecNumber(uint16_t v,uint8_t digit) {
             uint8_t units;
             uint8_t tens;
             uint8_t hundreds;
+            uint8_t thousands;
 
             units=v%10;
             v=v/10;
             tens=v%10;
             v=v/10;
-            hundreds=v;
+            hundreds=v%10;
+            v=v/10;
+            thousands=v%10;
 
             lc->setDigit(0,digit,units,false);
             lc->setDigit(0,digit+1,tens,false);
             lc->setDigit(0,digit+2,hundreds,false);
+            lc->setDigit(0,digit+3,thousands,false);
 
         }
 
-        void writeHexNumber(uint8_t v,uint8_t digit) {
+        void writeHexNumber(uint16_t v,uint8_t digit) {
             uint8_t units;
-            uint8_t teens;
-            uint8_t more;
+            uint8_t tens;
+            uint8_t hundreds;
+            uint8_t thousands;
 
             units=v%0x10;
             v=v/0x10;
-            teens=v%0x10;
+            tens=v%0x10;
             v=v/0x10;
-            more=v;
+            hundreds=v%0x10;
+            v=v/0x10;
+            thousands=v%0x10;
 
             lc->setDigit(0,digit,units,false);
-            lc->setDigit(0,digit+1,teens,false);
-            lc->setDigit(0,digit+2,more,false);
+            lc->setDigit(0,digit+1,tens,false);
+            lc->setDigit(0,digit+2,hundreds,false);
+            lc->setDigit(0,digit+3,thousands,false);
         }
 
         void shutdown() {
