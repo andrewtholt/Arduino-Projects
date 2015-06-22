@@ -4,6 +4,22 @@
 #define ILLEGAL_FUNCTION 1
 #define ILLEGAL_DATA_ADDRESS 2
 
+#define TRIP_BTN  6 // Port D bit 6
+#define RESET_BTN 7 // Port D bit 7
+#define MASK  0xc0 // top two bits set.
+
+#define TRIP_LED 8 // PortB bit 0
+#define RESET_LED 9 // Port B bit 1
+// 
+// Read Only Registers
+//
+#define MODBUS_I_RMS 1
+#define MODBUS_STATUS_REG 4 
+// 
+// Read/Write Registers
+//
+#define MODBUS_CONTROL_REG 0x10 
+
 #include <NilRTOS.h>
 #include <EEPROM.h>
 
@@ -156,8 +172,14 @@ void setup() {
     byte rtu;
     int data;
 
-    pinMode(13, OUTPUT);
-    digitalWrite(13,LOW);
+    pinMode( TRIP_BTN,INPUT);
+    pinMode( RESET_BTN,INPUT);
+
+    pinMode(TRIP_LED, OUTPUT);    
+    pinMode(RESET_LED, OUTPUT);  
+
+    digitalWrite(TRIP_LED, LOW);
+    digitalWrite(RESET_LED, LOW);
 
     Serial.begin(9600);
     setupSerial.begin(9600);
@@ -169,7 +191,8 @@ void setup() {
     LED.brightness(50);
     LED.clear();
 
-    rtu = EEPROM.read(0);
+    //    rtu = EEPROM.read(0);
+    rtu = 1;
 
     LED.writeDecNumber(r.getRegister(0),0);
     LED.writeHexNumber(rtu,4);
@@ -178,7 +201,6 @@ void setup() {
         bool exitFlag = false;
         byte reply;
 
-        digitalWrite(13,HIGH);
 
         do {
             LED.clear();
@@ -224,13 +246,16 @@ void setup() {
 
     }
 
-    digitalWrite(13,LOW);
     LED.writeHexNumber(rtu,4);
     delay(1000);
     LED.clear();
     LED.writeHexNumber(rtu,4);
 
     m=new modbus(rtu);
+
+    digitalWrite(TRIP_LED, HIGH);
+    digitalWrite(RESET_LED, HIGH);
+
     nilSysBegin();
 }
 
@@ -261,7 +286,7 @@ NIL_THREAD(thSensor,arg) {
 
         if( 8 == count ) {
             outputValue = sqrt(total / 8);
-            r.setRegister(0, outputValue);
+            r.setRegister(MODBUS_I_RMS, outputValue);
             count = 0;
             total = 0 ;
         } else {
@@ -273,10 +298,49 @@ NIL_THREAD(thSensor,arg) {
 }
 
 NIL_THREAD(thUI,arg) {
+    uint8_t buttons;
+    uint8_t br;
+    uint8_t idx=0;
+
+    bool fault = false;
+    bool released = false;
+    bool trip = false;
+    bool reset = false;
+    uint8_t count = 0;
+
+    //    r.setRegister(MODBUS_STATUS_REG,0x8000);
+
+    digitalWrite(TRIP_LED, HIGH);
+    digitalWrite(RESET_LED, HIGH);
 
     while(true) {
-        LED.writeDecNumber(r.getRegister(0),0);
-        nilThdSleepMilliseconds(500);
+        trip =  !digitalRead(TRIP_BTN);
+        reset = !digitalRead(RESET_BTN);
+
+        fault = trip & reset;
+
+        if(trip == true) {
+            r.clrRegisterBit(MODBUS_STATUS_REG,15);
+        }
+        if(reset == true) {
+            r.setRegisterBit(MODBUS_STATUS_REG,15);
+        }
+
+
+        if( r.getRegisterBit(MODBUS_STATUS_REG,15)) {
+            digitalWrite(RESET_LED, LOW);
+            digitalWrite(TRIP_LED, HIGH);
+        } else {
+            digitalWrite(RESET_LED, HIGH);
+            digitalWrite(TRIP_LED, LOW);
+        }
+
+        if( (count % 50) == 0 ) {
+            LED.writeHexNumber(r.getRegister(MODBUS_I_RMS),0);
+        }
+
+        nilThdSleepMilliseconds(10);
+        count++;
     }
 }
 
