@@ -12,10 +12,10 @@
 #define SERIAL_OUT Serial
 // Due
 // #define SERIAL_OUT SerialUSB
-
-// I2C_eeprom ee(0x50);
+#define ADDRESS 0x50
+I2C_eeprom ee(ADDRESS);
 // I2C_eeprom ee(0xa0);
-I2C_eeprom ee(0xae);
+// I2C_eeprom ee(0xae);
 
 uint32_t start, diff, totals = 0;
 
@@ -49,6 +49,8 @@ void setup()
   
   SERIAL_OUT.print("Demo I2C eeprom library ");
   SERIAL_OUT.print(I2C_EEPROM_VERSION);
+  SERIAL_OUT.println("Address: ");
+  SERIAL_OUT.print(ADDRESS,HEX);
   SERIAL_OUT.println("\n");
 
   SERIAL_OUT.println("\nTEST: determine size");

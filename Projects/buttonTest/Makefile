@@ -1,7 +1,7 @@
 BOARD_TAG    = uno
-ARDUINO_LIBS = LedControl SoftwareSerial NilRTOS
-NAME = Test
-# include ../../Arduino.mk
+ARDUINO_LIBS = 
+NAME = buttonTest
+
 include ../../Arduino.mk
 
 install:
