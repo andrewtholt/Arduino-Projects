@@ -174,6 +174,8 @@ void setup() {
     byte rtu;
     int data;
 
+    bool reconfig=false;
+
     uint8_t eepStatus = eep.begin(twiClock400kHz); 
     uint8_t eedata[4];
 
@@ -198,6 +200,8 @@ void setup() {
     LED.brightness(50);
     LED.clear();
 
+    reconfig = ( false == (digitalRead(TRIP_BTN) & digitalRead(RESET_BTN)));
+
     eep.read(0,eedata,1);
     rtu = eedata[0];
     // rtu = 1;
@@ -205,7 +209,7 @@ void setup() {
     LED.writeDecNumber(r.getRegister(0),0);
     LED.writeHexNumber(rtu,4);
 
-    if ( (0xff == rtu) || (0x00 == rtu) ) {
+    if ( (0xff == rtu) || (0x00 == rtu)  || reconfig) {
         bool exitFlag = false;
         byte reply;
 
