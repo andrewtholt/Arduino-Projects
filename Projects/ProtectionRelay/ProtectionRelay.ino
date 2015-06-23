@@ -10,6 +10,7 @@
 
 #define TRIP_LED 8 // PortB bit 0
 #define RESET_LED 9 // Port B bit 1
+#define RELAY 13
 // 
 // Read Only Registers
 //
@@ -21,7 +22,8 @@
 #define MODBUS_CONTROL_REG 0x10 
 
 #include <NilRTOS.h>
-#include <EEPROM.h>
+#include <extEEPROM.h> 
+extEEPROM eep(kbits_256, 1, 64);
 
 #include <SoftwareSerial.h>
 #include <NilSerial.h>
@@ -172,14 +174,19 @@ void setup() {
     byte rtu;
     int data;
 
+    uint8_t eepStatus = eep.begin(twiClock400kHz); 
+    uint8_t eedata[4];
+
     pinMode( TRIP_BTN,INPUT);
     pinMode( RESET_BTN,INPUT);
 
     pinMode(TRIP_LED, OUTPUT);    
     pinMode(RESET_LED, OUTPUT);  
+    pinMode(RELAY, OUTPUT);  
 
     digitalWrite(TRIP_LED, LOW);
     digitalWrite(RESET_LED, LOW);
+    digitalWrite(RELAY, LOW);
 
     Serial.begin(9600);
     setupSerial.begin(9600);
@@ -191,13 +198,14 @@ void setup() {
     LED.brightness(50);
     LED.clear();
 
-    //    rtu = EEPROM.read(0);
-    rtu = 1;
+    eep.read(0,eedata,1);
+    rtu = eedata[0];
+    // rtu = 1;
 
     LED.writeDecNumber(r.getRegister(0),0);
     LED.writeHexNumber(rtu,4);
 
-    if ( 0xff == rtu ) {
+    if ( (0xff == rtu) || (0x00 == rtu) ) {
         bool exitFlag = false;
         byte reply;
 
@@ -231,10 +239,10 @@ void setup() {
             setupSerial.println(reply);
 
             if ( 'y' == reply ) {
-                EEPROM.write(0,rtu);
+                eedata[0]=rtu;
+                eep.write(0,eedata,1);
                 delay(500);
                 LED.clear();
-                rtu = EEPROM.read(0);
                 if( 0xff == rtu ) {
                     setupSerial.println("No Change");
                     exitFlag = false;
@@ -332,6 +340,9 @@ NIL_THREAD(thUI,arg) {
         if( r.getRegisterBit(MODBUS_CONTROL_REG,15)) {
             digitalWrite(RESET_LED, HIGH);
             digitalWrite(TRIP_LED, LOW);
+
+            digitalWrite(RELAY, LOW);
+
             r.clrRegisterBit(MODBUS_CONTROL_REG,15);
             r.clrRegisterBit(MODBUS_STATUS_REG,15);
         } 
@@ -339,6 +350,9 @@ NIL_THREAD(thUI,arg) {
         if( r.getRegisterBit(MODBUS_CONTROL_REG,14)) {
             digitalWrite(RESET_LED, LOW);
             digitalWrite(TRIP_LED, HIGH);
+
+            digitalWrite(RELAY, HIGH);
+
             r.clrRegisterBit(MODBUS_CONTROL_REG,14);
             r.setRegisterBit(MODBUS_STATUS_REG,15);
         }
