@@ -263,7 +263,7 @@ NIL_THREAD(thModBus,arg) {
     uint8_t len;
 
     while( true ) {
-        nilThdSleepMicroseconds(100);
+        nilThdSleepMicroseconds(500);
         len = m->getPacket();
 
         if( len > 0 ) {
@@ -308,10 +308,11 @@ NIL_THREAD(thUI,arg) {
     bool reset = false;
     uint8_t count = 0;
 
-    //    r.setRegister(MODBUS_STATUS_REG,0x8000);
+    r.setRegister(MODBUS_STATUS_REG,0);
 
     digitalWrite(TRIP_LED, HIGH);
     digitalWrite(RESET_LED, HIGH);
+    r.setRegisterBit(MODBUS_CONTROL_REG,15);
 
     while(true) {
         trip =  !digitalRead(TRIP_BTN);
@@ -320,21 +321,30 @@ NIL_THREAD(thUI,arg) {
         fault = trip & reset;
 
         if(trip == true) {
-            r.clrRegisterBit(MODBUS_STATUS_REG,15);
+            r.setRegisterBit(MODBUS_CONTROL_REG,15);
         }
         if(reset == true) {
-            r.setRegisterBit(MODBUS_STATUS_REG,15);
+            r.setRegisterBit(MODBUS_CONTROL_REG,14);
         }
-
-
-        if( r.getRegisterBit(MODBUS_STATUS_REG,15)) {
-            digitalWrite(RESET_LED, LOW);
-            digitalWrite(TRIP_LED, HIGH);
-        } else {
+        // 
+        // Should this be in a thread of it's own ?
+        //
+        if( r.getRegisterBit(MODBUS_CONTROL_REG,15)) {
             digitalWrite(RESET_LED, HIGH);
             digitalWrite(TRIP_LED, LOW);
-        }
+            r.clrRegisterBit(MODBUS_CONTROL_REG,15);
+            r.clrRegisterBit(MODBUS_STATUS_REG,15);
+        } 
 
+        if( r.getRegisterBit(MODBUS_CONTROL_REG,14)) {
+            digitalWrite(RESET_LED, LOW);
+            digitalWrite(TRIP_LED, HIGH);
+            r.clrRegisterBit(MODBUS_CONTROL_REG,14);
+            r.setRegisterBit(MODBUS_STATUS_REG,15);
+        }
+        // 
+        // END
+        //
         if( (count % 50) == 0 ) {
             LED.writeHexNumber(r.getRegister(MODBUS_I_RMS),0);
         }

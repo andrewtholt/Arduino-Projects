@@ -64,7 +64,9 @@ private:
         address[len] = crc & 0xff;
         address[len+1] = (crc >> 8) & 0xff;
 
-        Serial.write(address, (len+2));
+        for(uint8_t idx; idx < (len+2); idx++ ) {
+            Serial.write(address[idx]);
+        }
 
     }
 
