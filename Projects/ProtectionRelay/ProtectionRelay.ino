@@ -167,6 +167,8 @@ int getNumber(int digits) {
 }
 
 modbus *m;
+
+#include <../ArduinoLibs/setup.cpp>
 // 
 // START
 //
@@ -213,55 +215,56 @@ void setup() {
         bool exitFlag = false;
         byte reply;
 
+        LED.clear();
+        delay(250);
+        LED.writeHexNumber(rtu,4);
+        delay(250);
+        LED.clear();
+        delay(250);
+        LED.writeHexNumber(rtu,4);
 
-        do {
-            LED.clear();
-            delay(250);
-            LED.writeHexNumber(rtu,4);
-            delay(250);
-            LED.clear();
-            delay(250);
-            LED.writeHexNumber(rtu,4);
+        LED.clear();
+        LED.writeHexNumber(rtu,4);
 
-            setupSerial.println();
-            setupSerial.println("No modbus address set, please enter one now.");
-            setupSerial.print("Modbus Address>");
+        setupMenu();
+        eep.read(0,eedata,1);
+        rtu = eedata[0];
+        /*
+           setupSerial.println();
+           setupSerial.println("No modbus address set, please enter one now.");
+           setupSerial.print("Modbus Address>");
 
-            rtu=getNumber(3);
+           rtu=getNumber(3);
 
-            setupSerial.println();
-            setupSerial.print("Modbus Address=");
+           setupSerial.println();
+           setupSerial.print("Modbus Address=");
 
-            LED.clear();
-            LED.writeHexNumber(rtu,4);
-            setupSerial.println(rtu);
+           setupSerial.println(rtu);
 
-            setupSerial.print("Is this correct [y/N] ? ");
+           setupSerial.print("Is this correct [y/N] ? ");
 
-            reply = getReply();
-            setupSerial.println();
-            setupSerial.println(reply);
+           reply = getReply();
+           setupSerial.println();
+           setupSerial.println(reply);
 
-            if ( 'y' == reply ) {
-                eedata[0]=rtu;
-                eep.write(0,eedata,1);
-                delay(500);
-                LED.clear();
-                if( 0xff == rtu ) {
-                    setupSerial.println("No Change");
-                    exitFlag = false;
-                } else {
-                    exitFlag=true;
-                }
-            }
-        } while( false == exitFlag);
-
+           if ( 'y' == reply ) {
+           eedata[0]=rtu;
+           eep.write(0,eedata,1);
+           delay(500);
+           LED.clear();
+           if( 0xff == rtu ) {
+           setupSerial.println("No Change");
+           exitFlag = false;
+           } else {
+           exitFlag=true;
+           }
+           }
+           */
     }
 
-    LED.writeHexNumber(rtu,4);
-    delay(1000);
     LED.clear();
     LED.writeHexNumber(rtu,4);
+    delay(1000);
 
     m=new modbus(rtu);
 
