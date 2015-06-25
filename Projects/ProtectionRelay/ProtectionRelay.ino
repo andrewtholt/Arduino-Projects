@@ -200,7 +200,7 @@ void setup() {
     LED.brightness(50);
     LED.clear();
 
-    reconfig = ( false == (digitalRead(TRIP_BTN) & digitalRead(RESET_BTN)));
+    reconfig = (digitalRead(TRIP_BTN == false) & (digitalRead(RESET_BTN) == false));
 
     eep.read(0,eedata,1);
     rtu = eedata[0];
@@ -364,7 +364,7 @@ NIL_THREAD(thUI,arg) {
         // END
         //
         if( (count % 50) == 0 ) {
-            LED.writeHexNumber(r.getRegister(MODBUS_I_RMS),0);
+            LED.writeDecNumber(r.getRegister(MODBUS_I_RMS),0);
         }
 
         nilThdSleepMilliseconds(10);
