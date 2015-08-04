@@ -26,6 +26,39 @@ void move(int x, int y) {
     setupSerial.print("H");
 }
 
+void showSettings() {
+    int line;
+    int col;
+    uint8_t runFlag=TRUE;
+
+    line = 3;
+    col = 20; 
+
+    cls();
+    move(line++, col);
+    setupSerial.print("Settings");
+    move(line++, col);
+    setupSerial.print("========");
+
+    line = 6;
+    col = 10; 
+
+    move(line,col);
+    setupSerial.print("ModBus Address :");
+    setupSerial.println(r.getRegister(0x11));
+
+    move(20, 20);
+    setupSerial.print("Press a key to continue");
+    while(runFlag) {
+        while (setupSerial.available() > 0) {
+            setupSerial.read();
+            runFlag=FALSE;
+        }   
+    }   
+
+
+}
+
 void drawModbusMenu() {
     int line;
     int col;
