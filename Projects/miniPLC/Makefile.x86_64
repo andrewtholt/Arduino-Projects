@@ -1,0 +1,9 @@
+
+BINS=miniPLC
+CFLAGS=-g
+
+all:	$(BINS)
+
+miniPLC:	miniPLC.c
+	$(CC) $(CFLAGS) miniPLC.c -o miniPLC
+
